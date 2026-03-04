@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
@@ -9,6 +9,11 @@ export default function LoginPage() {
   const { user, loading, signIn, authError } = useAuth()
   const { teams, loadingTeams } = useTeam()
   const router = useRouter()
+  const [copied, setCopied] = useState(false)
+
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent
+  const isInApp = /FBAN|FBAV|Instagram|MicroMessenger|Line\//i.test(ua)
+    || (ua.includes('Android') && ua.includes('; wv)'))
 
   useEffect(() => {
     if (loading || loadingTeams) return
@@ -19,6 +24,25 @@ export default function LoginPage() {
       router.replace('/onboarding')
     }
   }, [user, loading, teams, loadingTeams, router])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const currentUa = window.navigator.userAgent
+    if (!/Line\//i.test(currentUa)) return
+
+    const url = new URL(window.location.href)
+    if (url.searchParams.has('openExternalBrowser')) return
+    url.searchParams.set('openExternalBrowser', '1')
+    window.location.replace(url.toString())
+  }, [])
+
+  const handleCopy = () => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    }).catch(() => {})
+  }
 
   if (loading) return null
 
@@ -70,26 +94,70 @@ export default function LoginPage() {
           ))}
         </div>
 
-        {/* Login Button */}
-        <button
-          onClick={() => { void signIn() }}
-          style={{
-            width: '100%',
-            background: 'var(--gold)',
-            color: 'var(--black)',
-            border: 'none',
-            padding: '1rem',
-            fontFamily: 'Bebas Neue, sans-serif',
-            fontSize: '1rem',
-            letterSpacing: '0.2em',
-            cursor: 'pointer',
-            transition: 'opacity 0.2s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
-          onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
-        >
-          用 Google 登入
-        </button>
+        {/* Login */}
+        {isInApp ? (
+          <div style={{
+            border: '1px solid rgba(200,164,85,0.4)',
+            background: 'rgba(200,164,85,0.06)',
+            padding: '1rem 1.15rem',
+            textAlign: 'left',
+          }}>
+            <p style={{
+              fontSize: '0.82rem',
+              color: 'var(--gold)',
+              letterSpacing: '0.05em',
+              marginBottom: '0.45rem',
+              fontWeight: 500,
+            }}>
+              請改用外部瀏覽器登入
+            </p>
+            <p style={{
+              fontSize: '0.76rem',
+              color: 'var(--body-text)',
+              lineHeight: 1.7,
+              marginBottom: '0.8rem',
+            }}>
+              目前是內建瀏覽器，Google 登入常被封鎖。<br />
+              請用 Safari / Chrome 開啟此頁面再登入。
+            </p>
+            <button
+              onClick={handleCopy}
+              style={{
+                width: '100%',
+                background: copied ? 'rgba(200,164,85,0.16)' : 'transparent',
+                color: copied ? 'var(--gold)' : 'var(--muted)',
+                border: '1px solid var(--dark-border)',
+                padding: '0.65rem',
+                fontFamily: 'Noto Sans TC, sans-serif',
+                fontSize: '0.76rem',
+                letterSpacing: '0.08em',
+                cursor: 'pointer',
+              }}
+            >
+              {copied ? '✓ 已複製連結' : '複製連結'}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => { void signIn() }}
+            style={{
+              width: '100%',
+              background: 'var(--gold)',
+              color: 'var(--black)',
+              border: 'none',
+              padding: '1rem',
+              fontFamily: 'Bebas Neue, sans-serif',
+              fontSize: '1rem',
+              letterSpacing: '0.2em',
+              cursor: 'pointer',
+              transition: 'opacity 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+          >
+            用 Google 登入
+          </button>
+        )}
 
         {authError && (
           <p style={{ fontSize: '0.76rem', color: '#e06c6c', marginTop: '0.75rem', lineHeight: 1.6 }}>

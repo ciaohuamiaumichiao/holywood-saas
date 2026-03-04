@@ -67,6 +67,9 @@ function mapSignInError(error: unknown): string {
   if (code === 'auth/popup-closed-by-user') {
     return '登入視窗已關閉，請再試一次。'
   }
+  if (message.includes('Illegal url for new iframe')) {
+    return 'Firebase 設定讀到了異常字元。請強制重整頁面後再試，若仍失敗請通知我重設 Vercel 環境變數。'
+  }
   if (
     message.toLowerCase().includes('blocked by') ||
     message.toLowerCase().includes('content blocker')
