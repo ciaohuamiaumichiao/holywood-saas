@@ -35,8 +35,16 @@ function extractAuthCode(error: unknown): string {
   return ''
 }
 
+function extractAuthMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return String((error as { message?: unknown }).message ?? '')
+  }
+  return ''
+}
+
 function mapSignInError(error: unknown): string {
   const code = extractAuthCode(error)
+  const message = extractAuthMessage(error)
 
   if (code === 'auth/unauthorized-domain') {
     return '此網域尚未加入 Firebase Authentication Authorized domains，請先加入 holywood-saas.vercel.app。'
@@ -59,7 +67,15 @@ function mapSignInError(error: unknown): string {
   if (code === 'auth/popup-closed-by-user') {
     return '登入視窗已關閉，請再試一次。'
   }
-  return `Google 登入失敗（${code || 'unknown'}），請稍後再試。`
+  return `Google 登入失敗（${code || 'unknown'}）${message ? `：${message}` : ''}`
+}
+
+function shouldFallbackToRedirect(code: string): boolean {
+  if (!code) return true
+  if (code === 'auth/unauthorized-domain') return false
+  if (code === 'auth/operation-not-allowed') return false
+  if (code === 'auth/invalid-api-key') return false
+  return true
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -101,8 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signInWithPopup(auth, googleProvider)
     } catch (error) {
       const code = extractAuthCode(error)
-
-      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+      if (shouldFallbackToRedirect(code)) {
         try {
           await signInWithRedirect(auth, googleProvider)
           return
