@@ -28,14 +28,30 @@ const AuthContext = createContext<AuthContextType>({
   refreshProfile: async () => {},
 })
 
+function extractAuthCode(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    return String((error as { code?: unknown }).code ?? '')
+  }
+  return ''
+}
+
 function mapSignInError(error: unknown): string {
-  const code =
-    typeof error === 'object' && error !== null && 'code' in error
-      ? String((error as { code?: unknown }).code ?? '')
-      : ''
+  const code = extractAuthCode(error)
 
   if (code === 'auth/unauthorized-domain') {
     return '此網域尚未加入 Firebase Authentication Authorized domains，請先加入 holywood-saas.vercel.app。'
+  }
+  if (code === 'auth/operation-not-allowed') {
+    return 'Firebase Authentication 尚未啟用 Google 登入，請到 Firebase Console 開啟 Google provider。'
+  }
+  if (code === 'auth/invalid-api-key') {
+    return 'Firebase API key 無效，請檢查 Vercel 的 NEXT_PUBLIC_FIREBASE_API_KEY。'
+  }
+  if (code === 'auth/network-request-failed') {
+    return '網路連線失敗，請確認瀏覽器網路或防火牆設定後重試。'
+  }
+  if (code === 'auth/cancelled-popup-request') {
+    return '已取消登入視窗，請再試一次。'
   }
   if (code === 'auth/popup-blocked') {
     return '瀏覽器阻擋了登入視窗，請允許彈出視窗後再試一次。'
@@ -43,7 +59,7 @@ function mapSignInError(error: unknown): string {
   if (code === 'auth/popup-closed-by-user') {
     return '登入視窗已關閉，請再試一次。'
   }
-  return 'Google 登入失敗，請稍後再試。'
+  return `Google 登入失敗（${code || 'unknown'}），請稍後再試。`
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -84,10 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithPopup(auth, googleProvider)
     } catch (error) {
-      const code =
-        typeof error === 'object' && error !== null && 'code' in error
-          ? String((error as { code?: unknown }).code ?? '')
-          : ''
+      const code = extractAuthCode(error)
 
       if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
         try {
@@ -95,12 +108,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         } catch (redirectError) {
           setAuthError(mapSignInError(redirectError))
-          throw redirectError
+          console.error('[auth] signInWithRedirect failed', redirectError)
+          return
         }
       }
 
       setAuthError(mapSignInError(error))
-      throw error
+      console.error('[auth] signInWithPopup failed', error)
     }
   }
 

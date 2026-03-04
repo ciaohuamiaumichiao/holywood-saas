@@ -93,7 +93,7 @@ export default function JoinPage() {
             </p>
 
             {!user ? (
-              <button onClick={() => signIn()} style={btnStyle}>
+              <button onClick={() => { void signIn() }} style={btnStyle}>
                 用 Google 登入以加入
               </button>
             ) : (

@@ -72,7 +72,7 @@ export default function LoginPage() {
 
         {/* Login Button */}
         <button
-          onClick={() => signIn()}
+          onClick={() => { void signIn() }}
           style={{
             width: '100%',
             background: 'var(--gold)',
