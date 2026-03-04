@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut, User } from 'firebase/auth'
+import { getRedirectResult, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut, User } from 'firebase/auth'
 import { auth, googleProvider } from '@/lib/firebase'
 import { upsertUser, getUser } from '@/lib/firestore-teams'
 import { UserProfile } from '@/lib/types'
@@ -56,7 +56,7 @@ function mapSignInError(error: unknown): string {
     return 'Firebase API key 無效，請檢查 Vercel 的 NEXT_PUBLIC_FIREBASE_API_KEY。'
   }
   if (code === 'auth/network-request-failed') {
-    return '網路連線失敗，請確認瀏覽器網路或防火牆設定後重試。'
+    return '網路請求失敗。若你有使用廣告/隱私外掛，請先允許 holywood-saas.vercel.app 與 accounts.google.com 再重試。'
   }
   if (code === 'auth/cancelled-popup-request') {
     return '已取消登入視窗，請再試一次。'
@@ -66,6 +66,12 @@ function mapSignInError(error: unknown): string {
   }
   if (code === 'auth/popup-closed-by-user') {
     return '登入視窗已關閉，請再試一次。'
+  }
+  if (
+    message.toLowerCase().includes('blocked by') ||
+    message.toLowerCase().includes('content blocker')
+  ) {
+    return '瀏覽器內容阻擋器擋住 Google 登入流程，請停用外掛或將 holywood-saas.vercel.app、accounts.google.com 加入白名單。'
   }
   return `Google 登入失敗（${code || 'unknown'}）${message ? `：${message}` : ''}`
 }
@@ -85,6 +91,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+
+    getRedirectResult(auth)
+      .then(() => {
+        if (!cancelled) setAuthError(null)
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setAuthError(mapSignInError(error))
+        console.error('[auth] getRedirectResult failed', error)
+      })
+
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser)
       try {
@@ -118,7 +136,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false)
       }
     })
-    return unsub
+    return () => {
+      cancelled = true
+      unsub()
+    }
   }, [])
 
   const refreshProfile = async () => {
@@ -130,22 +151,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleSignIn = async () => {
     setAuthError(null)
     try {
+      await signInWithRedirect(auth, googleProvider)
+      return
+    } catch (redirectError) {
+      console.error('[auth] signInWithRedirect failed', redirectError)
+    }
+
+    try {
       await signInWithPopup(auth, googleProvider)
-    } catch (error) {
-      const code = extractAuthCode(error)
+    } catch (popupError) {
+      const code = extractAuthCode(popupError)
       if (shouldFallbackToRedirect(code)) {
         try {
           await signInWithRedirect(auth, googleProvider)
           return
         } catch (redirectError) {
           setAuthError(mapSignInError(redirectError))
-          console.error('[auth] signInWithRedirect failed', redirectError)
+          console.error('[auth] signInWithRedirect retry failed', redirectError)
           return
         }
       }
 
-      setAuthError(mapSignInError(error))
-      console.error('[auth] signInWithPopup failed', error)
+      setAuthError(mapSignInError(popupError))
+      console.error('[auth] signInWithPopup failed', popupError)
     }
   }
 
