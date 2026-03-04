@@ -112,7 +112,8 @@ export interface SwapRequest {
   sessionId: string
   sessionDate: string
   sessionTitle: string
-  role: Role
+  role: Role              // roleId
+  roleLabel?: string      // 顯示名稱（可選）
   requesterId: string
   requesterName: string
   requesterPhoto?: string

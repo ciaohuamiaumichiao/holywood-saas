@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
 import Navbar from '@/components/Navbar'
-import { subscribeToSessions, selfAssignRole, selfUnassignRole, subscribeToMySwaps, subscribeToMyOutgoingSwaps, createSwapRequest, respondToSwap } from '@/lib/firestore'
+import { subscribeToSessions, subscribeToMySwaps, subscribeToMyOutgoingSwaps, createSwapRequest } from '@/lib/firestore'
+import { postJsonWithAuth } from '@/lib/authed-post'
 import { Session, SwapRequest, RoleConfig } from '@/lib/types'
 
 const WEEKDAY_ZH = ['日', '一', '二', '三', '四', '五', '六']
@@ -82,12 +83,22 @@ export default function SchedulePage() {
 
   async function handleAssign(sessionId: string, roleId: string) {
     if (!activeTeamId) return
-    await selfAssignRole(activeTeamId, sessionId, roleId, { uid: userId, displayName, photoURL })
+    await postJsonWithAuth('/api/sessions/self-assignment', {
+      teamId: activeTeamId,
+      sessionId,
+      roleId,
+      action: 'assign',
+    })
   }
 
   async function handleUnassign(sessionId: string, roleId: string) {
     if (!activeTeamId) return
-    await selfUnassignRole(activeTeamId, sessionId, roleId, userId)
+    await postJsonWithAuth('/api/sessions/self-assignment', {
+      teamId: activeTeamId,
+      sessionId,
+      roleId,
+      action: 'unassign',
+    })
   }
 
   async function handleSwapRequest(session: Session, roleId: string, targetId: string, targetName: string, targetPhoto: string) {
@@ -99,7 +110,8 @@ export default function SchedulePage() {
       sessionId: session.id,
       sessionDate: session.date,
       sessionTitle: session.title,
-      role: myRoleLabel,
+      role: myRoleId,
+      roleLabel: myRoleLabel,
       requesterId: userId,
       requesterName: displayName,
       requesterPhoto: photoURL,
@@ -112,7 +124,11 @@ export default function SchedulePage() {
 
   async function handleRespondSwap(swapId: string, resp: 'accepted' | 'rejected') {
     if (!activeTeamId) return
-    await respondToSwap(activeTeamId, swapId, resp)
+    await postJsonWithAuth('/api/swaps/respond', {
+      teamId: activeTeamId,
+      swapId,
+      response: resp,
+    })
   }
 
   return (
@@ -136,7 +152,7 @@ export default function SchedulePage() {
                     {sw.requesterName}
                   </span>
                   <span style={{ fontSize: '0.78rem', color: 'var(--muted)', marginLeft: '0.5rem' }}>
-                    申請換班｜{sw.sessionDate} {sw.sessionTitle}｜{sw.role}
+                    申請換班｜{sw.sessionDate} {sw.sessionTitle}｜{sw.roleLabel || sw.role}
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -166,7 +182,7 @@ export default function SchedulePage() {
             </h2>
             {outgoing.map(sw => (
               <div key={sw.id} style={{ fontSize: '0.78rem', color: 'var(--muted)', marginBottom: '0.35rem' }}>
-                → {sw.targetName}｜{sw.sessionDate} {sw.sessionTitle}｜{sw.role}｜
+                → {sw.targetName}｜{sw.sessionDate} {sw.sessionTitle}｜{sw.roleLabel || sw.role}｜
                 <span style={{ color: sw.status === 'accepted' ? 'var(--gold)' : sw.status === 'rejected' ? '#e05' : 'var(--muted)' }}>
                   {sw.status === 'pending' ? '待回應' : sw.status === 'accepted' ? '已接受' : '已拒絕'}
                 </span>

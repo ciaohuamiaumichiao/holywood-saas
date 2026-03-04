@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
@@ -15,13 +15,13 @@ import {
 } from '@/lib/firestore'
 import {
   subscribeToTeamMembers,
-  setMemberRole,
   removeTeamMember,
   createInvitation,
   getTeamInvitations,
   deactivateInvitation,
   updateTeam,
 } from '@/lib/firestore-teams'
+import { postJsonWithAuth } from '@/lib/authed-post'
 import { Session, TeamMember, Invitation, RoleConfig } from '@/lib/types'
 
 type Tab = 'schedule' | 'members' | 'settings'
@@ -58,10 +58,37 @@ export default function AdminPage() {
   const [inviteLink, setInviteLink] = useState<string | null>(null)
 
   // ─── Settings ─────────────────────────────────────────────────────────────
-  const [teamName, setTeamName] = useState('')
-  const [roles, setRoles] = useState<RoleConfig[]>([])
+  const [settingsDraft, setSettingsDraft] = useState<{
+    teamId: string | null
+    teamName: string
+    roles: RoleConfig[]
+  } | null>(null)
   const [newRoleLabel, setNewRoleLabel] = useState('')
   const [settingsSaved, setSettingsSaved] = useState(false)
+  const activeTeamSettings = useMemo(() => ({
+    teamId: activeTeam?.id ?? null,
+    teamName: activeTeam?.name ?? '',
+    roles: activeTeam ? [...activeTeam.roles].sort((a, b) => a.order - b.order) : [],
+  }), [activeTeam])
+  const currentSettings =
+    settingsDraft?.teamId === activeTeamSettings.teamId
+      ? settingsDraft
+      : activeTeamSettings
+  const teamName = currentSettings.teamName
+  const roles = currentSettings.roles
+
+  function updateSettingsDraft(
+    updater: (base: { teamId: string | null; teamName: string; roles: RoleConfig[] }) => {
+      teamId: string | null
+      teamName: string
+      roles: RoleConfig[]
+    }
+  ) {
+    setSettingsDraft((prev) => {
+      const base = prev?.teamId === activeTeamSettings.teamId ? prev : activeTeamSettings
+      return updater(base)
+    })
+  }
 
   // ─── Auth guard ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -91,14 +118,6 @@ export default function AdminPage() {
     if (!activeTeamId || activeTab !== 'members') return
     getTeamInvitations(activeTeamId).then(setInvitations)
   }, [activeTeamId, activeTab])
-
-  // ─── Init settings ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (activeTeam) {
-      setTeamName(activeTeam.name)
-      setRoles([...activeTeam.roles].sort((a, b) => a.order - b.order))
-    }
-  }, [activeTeam])
 
   // ─── Handlers: Sessions ───────────────────────────────────────────────────
   async function handleCreateSession() {
@@ -135,7 +154,11 @@ export default function AdminPage() {
   // ─── Handlers: Members ────────────────────────────────────────────────────
   async function handleSetRole(uid: string, role: 'owner' | 'admin' | 'member') {
     if (!activeTeamId) return
-    await setMemberRole(activeTeamId, uid, role)
+    await postJsonWithAuth('/api/team-members/set-role', {
+      teamId: activeTeamId,
+      targetUid: uid,
+      role,
+    })
   }
 
   async function handleRemoveMember(uid: string) {
@@ -164,29 +187,37 @@ export default function AdminPage() {
   function handleAddRole() {
     const label = newRoleLabel.trim()
     if (!label) return
-    const id = label.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
-    const newRole: RoleConfig = { id, label, order: roles.length }
-    setRoles([...roles, newRole])
+    updateSettingsDraft((base) => {
+      const id = label.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+      const newRole: RoleConfig = { id, label, order: base.roles.length }
+      return { ...base, roles: [...base.roles, newRole] }
+    })
     setNewRoleLabel('')
   }
 
   function handleDeleteRole(id: string) {
-    setRoles(roles.filter((r) => r.id !== id))
+    updateSettingsDraft((base) => ({
+      ...base,
+      roles: base.roles.filter((r) => r.id !== id),
+    }))
   }
 
   function handleMoveRole(index: number, direction: 'up' | 'down') {
-    const newRoles = [...roles]
-    const swapIndex = direction === 'up' ? index - 1 : index + 1
-    if (swapIndex < 0 || swapIndex >= newRoles.length) return
-    ;[newRoles[index], newRoles[swapIndex]] = [newRoles[swapIndex], newRoles[index]]
-    const reordered = newRoles.map((r, i) => ({ ...r, order: i }))
-    setRoles(reordered)
+    updateSettingsDraft((base) => {
+      const newRoles = [...base.roles]
+      const swapIndex = direction === 'up' ? index - 1 : index + 1
+      if (swapIndex < 0 || swapIndex >= newRoles.length) return base
+      ;[newRoles[index], newRoles[swapIndex]] = [newRoles[swapIndex], newRoles[index]]
+      const reordered = newRoles.map((r, i) => ({ ...r, order: i }))
+      return { ...base, roles: reordered }
+    })
   }
 
   async function handleSaveSettings() {
     if (!activeTeamId) return
     await updateTeam(activeTeamId, { name: teamName, roles })
     await refreshTeams()
+    setSettingsDraft(null)
     setSettingsSaved(true)
     setTimeout(() => setSettingsSaved(false), 2000)
   }
@@ -546,7 +577,10 @@ export default function AdminPage() {
               <input
                 type="text"
                 value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
+                onChange={(e) => {
+                  const nextName = e.target.value
+                  updateSettingsDraft((base) => ({ ...base, teamName: nextName }))
+                }}
                 style={{ ...inputStyle, maxWidth: 400 }}
               />
             </div>

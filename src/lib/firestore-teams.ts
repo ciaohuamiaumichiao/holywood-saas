@@ -1,5 +1,6 @@
 import {
   collection,
+  collectionGroup,
   doc,
   getDoc,
   getDocs,
@@ -67,20 +68,21 @@ export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
 }
 
 export async function getMyTeams(uid: string): Promise<Team[]> {
-  // 查詢所有 teams 下有此 uid 的 members 文件
-  // Firestore 不支援 collectionGroup 按需求組合，改為查 memberships 輔助集合
-  const snap = await getDocs(
-    query(collection(db, 'memberships'), where('uid', '==', uid))
-  )
+  // 使用 collectionGroup 跨團隊查詢當前使用者的 member 文件
+  const snap = await getDocs(query(collectionGroup(db, 'members'), where('uid', '==', uid)))
   if (snap.empty) return []
-  const teamIds = snap.docs.map(d => d.data().teamId as string)
+  const teamIds = Array.from(new Set(
+    snap.docs
+      .map(d => d.ref.parent.parent?.id)
+      .filter((id): id is string => Boolean(id))
+  ))
   const teams = await Promise.all(teamIds.map(id => getTeam(id)))
   return teams.filter(Boolean) as Team[]
 }
 
 export async function addTeamMember(
   teamId: string,
-  teamName: string,
+  _teamName: string,
   user: { uid: string; displayName: string; photoURL: string; email: string },
   role: MemberRole = 'member',
 ): Promise<void> {
@@ -92,14 +94,6 @@ export async function addTeamMember(
     role,
     joinedAt: Date.now(),
   } satisfies TeamMember)
-
-  // 更新 memberships 輔助集合（方便 getMyTeams 查詢）
-  await setDoc(doc(db, 'memberships', `${user.uid}_${teamId}`), {
-    uid: user.uid,
-    teamId,
-    teamName,
-    joinedAt: Date.now(),
-  })
 }
 
 export async function setMemberRole(teamId: string, uid: string, role: MemberRole): Promise<void> {
@@ -108,7 +102,6 @@ export async function setMemberRole(teamId: string, uid: string, role: MemberRol
 
 export async function removeTeamMember(teamId: string, uid: string): Promise<void> {
   await deleteDoc(doc(db, 'teams', teamId, 'members', uid))
-  await deleteDoc(doc(db, 'memberships', `${uid}_${teamId}`))
 }
 
 export async function getTeamMember(teamId: string, uid: string): Promise<TeamMember | null> {

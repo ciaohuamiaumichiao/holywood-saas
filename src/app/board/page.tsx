@@ -68,17 +68,12 @@ export default function BoardPage() {
   const { activeTeam, activeTeamId } = useTeam()
 
   const [sessions, setSessions] = useState<Session[]>([])
-  const [isDemo, setIsDemo] = useState(false)
+  const isDemo = !activeTeamId
 
   useEffect(() => {
-    if (activeTeamId) {
-      setIsDemo(false)
-      const unsub = subscribeToSessions(activeTeamId, setSessions)
-      return () => unsub()
-    } else {
-      setIsDemo(true)
-      setSessions(DEMO_SESSIONS)
-    }
+    if (!activeTeamId) return
+    const unsub = subscribeToSessions(activeTeamId, setSessions)
+    return () => unsub()
   }, [activeTeamId])
 
   const roles: RoleConfig[] = activeTeam?.roles
@@ -86,7 +81,8 @@ export default function BoardPage() {
     : DEMO_ROLES
 
   const today = getToday()
-  const futureSessions = sessions
+  const visibleSessions = activeTeamId ? sessions : DEMO_SESSIONS
+  const futureSessions = visibleSessions
     .filter(s => s.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
 

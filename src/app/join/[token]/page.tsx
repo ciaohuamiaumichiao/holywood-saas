@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
-import { getInvitation, addTeamMember } from '@/lib/firestore-teams'
+import { getInvitation } from '@/lib/firestore-teams'
+import { postJsonWithAuth } from '@/lib/authed-post'
 import { Invitation } from '@/lib/types'
 
 export default function JoinPage() {
@@ -15,16 +16,16 @@ export default function JoinPage() {
   const searchParams = useSearchParams()
   const token = params.token as string
   const teamId = searchParams.get('team') ?? ''
+  const hasJoinParams = Boolean(teamId && token)
 
   const [invitation, setInvitation] = useState<Invitation | null>(null)
-  const [status, setStatus] = useState<'loading' | 'valid' | 'invalid' | 'joining' | 'done' | 'error'>('loading')
+  const [status, setStatus] = useState<'loading' | 'valid' | 'invalid' | 'joining' | 'done' | 'error'>(
+    hasJoinParams ? 'loading' : 'invalid'
+  )
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
-    if (!teamId || !token) {
-      setStatus('invalid')
-      return
-    }
+    if (!hasJoinParams) return
     getInvitation(teamId, token).then(inv => {
       if (!inv || !inv.active || inv.expiresAt < Date.now()) {
         setStatus('invalid')
@@ -37,17 +38,15 @@ export default function JoinPage() {
       setInvitation(inv)
       setStatus('valid')
     })
-  }, [teamId, token])
+  }, [hasJoinParams, teamId, token])
 
   const handleJoin = async () => {
     if (!user || !profile || !invitation) return
     setStatus('joining')
     try {
-      await addTeamMember(teamId, invitation.teamName, {
-        uid: user.uid,
-        displayName: profile.displayName,
-        photoURL: profile.photoURL,
-        email: profile.email,
+      await postJsonWithAuth('/api/join-team', {
+        teamId,
+        inviteToken: token,
       })
       await refreshTeams()
       setStatus('done')

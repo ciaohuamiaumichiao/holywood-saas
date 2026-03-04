@@ -30,8 +30,6 @@ export default function Navbar() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  useEffect(() => { setMenuOpen(false) }, [pathname])
-
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (teamMenuRef.current && !teamMenuRef.current.contains(e.target as Node)) {
