@@ -64,7 +64,7 @@ export default function MySchedulePage() {
     .filter(s => {
       if (s.date < today) return false
       const assignments = s.assignments || {}
-      return Object.values(assignments).some(a => a.uid === userId)
+      return Object.values(assignments).some(a => a.userId === userId)
     })
     .sort((a, b) => a.date.localeCompare(b.date))
 
@@ -87,7 +87,7 @@ export default function MySchedulePage() {
 
         {mySessions.map(session => {
           const assignments = session.assignments || {}
-          const myEntries = Object.entries(assignments).filter(([, a]) => a.uid === userId)
+          const myEntries = Object.entries(assignments).filter(([, a]) => a.userId === userId)
 
           return (
             <div key={session.id} style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', padding: '1.25rem 1.5rem', marginBottom: '1rem' }}>

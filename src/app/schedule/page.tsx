@@ -92,7 +92,7 @@ export default function SchedulePage() {
 
   async function handleSwapRequest(session: Session, roleId: string, targetId: string, targetName: string, targetPhoto: string) {
     if (!activeTeamId) return
-    const myRoleId = Object.entries(session.assignments || {}).find(([, a]) => a.uid === userId)?.[0]
+    const myRoleId = Object.entries(session.assignments || {}).find(([, a]) => a.userId === userId)?.[0]
     if (!myRoleId) return
     const myRoleLabel = roles.find(r => r.id === myRoleId)?.label || myRoleId
     await createSwapRequest(activeTeamId, {
@@ -182,7 +182,7 @@ export default function SchedulePage() {
 
         {futureSessions.map(session => {
           const assignments = session.assignments || {}
-          const myRoleId = Object.entries(assignments).find(([, a]) => a.uid === userId)?.[0]
+          const myRoleId = Object.entries(assignments).find(([, a]) => a.userId === userId)?.[0]
 
           return (
             <div key={session.id} style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', padding: '1.25rem 1.5rem', marginBottom: '1rem' }}>
@@ -211,7 +211,7 @@ export default function SchedulePage() {
               {/* Roles */}
               {roles.map((role, idx) => {
                 const assignment = assignments[role.id]
-                const isMe = assignment?.uid === userId
+                const isMe = assignment?.userId === userId
                 const isMyRole = myRoleId === role.id
                 const isOtherAssigned = assignment && !isMe
 
@@ -255,7 +255,7 @@ export default function SchedulePage() {
                       )}
                       {myRoleId && isOtherAssigned && (
                         <button
-                          onClick={() => handleSwapRequest(session, role.id, assignment.uid, assignment.displayName, assignment.photoURL || '')}
+                          onClick={() => handleSwapRequest(session, role.id, assignment.userId, assignment.displayName, assignment.photoURL || '')}
                           style={{ background: 'rgba(200,164,85,0.08)', border: '1px solid rgba(200,164,85,0.3)', color: 'var(--gold)', fontSize: '0.72rem', padding: '0.25rem 0.6rem', cursor: 'pointer' }}
                         >
                           申請換班
