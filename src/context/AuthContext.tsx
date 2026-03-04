@@ -154,29 +154,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleSignIn = async () => {
     setAuthError(null)
     try {
+      await signInWithPopup(auth, googleProvider)
+      return
+    } catch (popupError) {
+      const code = extractAuthCode(popupError)
+      if (!shouldFallbackToRedirect(code)) {
+        setAuthError(mapSignInError(popupError))
+        console.error('[auth] signInWithPopup failed (no redirect fallback)', popupError)
+        return
+      }
+    }
+
+    // Popup 被阻擋或失敗，再走 redirect
+    try {
       await signInWithRedirect(auth, googleProvider)
       return
     } catch (redirectError) {
-      console.error('[auth] signInWithRedirect failed', redirectError)
-    }
-
-    try {
-      await signInWithPopup(auth, googleProvider)
-    } catch (popupError) {
-      const code = extractAuthCode(popupError)
-      if (shouldFallbackToRedirect(code)) {
-        try {
-          await signInWithRedirect(auth, googleProvider)
-          return
-        } catch (redirectError) {
-          setAuthError(mapSignInError(redirectError))
-          console.error('[auth] signInWithRedirect retry failed', redirectError)
-          return
-        }
-      }
-
-      setAuthError(mapSignInError(popupError))
-      console.error('[auth] signInWithPopup failed', popupError)
+      setAuthError(mapSignInError(redirectError))
+      console.error('[auth] signInWithRedirect failed after popup', redirectError)
     }
   }
 
