@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
 
 export default function LoginPage() {
-  const { user, loading, signIn } = useAuth()
+  const { user, loading, signIn, authError } = useAuth()
   const { teams, loadingTeams } = useTeam()
   const router = useRouter()
 
@@ -90,6 +90,12 @@ export default function LoginPage() {
         >
           用 Google 登入
         </button>
+
+        {authError && (
+          <p style={{ fontSize: '0.76rem', color: '#e06c6c', marginTop: '0.75rem', lineHeight: 1.6 }}>
+            {authError}
+          </p>
+        )}
 
         <p style={{ fontSize: '0.7rem', color: 'var(--muted)', marginTop: '1.5rem', letterSpacing: '0.05em' }}>
           v1.0 · SaaS 多租戶版
