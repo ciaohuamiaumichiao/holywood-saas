@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── 輔助函式 ──────────────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // 取得 team member 文件
+    function getMember(teamId) {
+      return get(/databases/$(database)/documents/teams/$(teamId)/members/$(uid())).data;
+    }
+
+    function isTeamMember(teamId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(uid()));
+    }
+
+    function isTeamAdmin(teamId) {
+      return isTeamMember(teamId) &&
+        getMember(teamId).role in ['owner', 'admin'];
+    }
+
+    function isTeamOwner(teamId) {
+      return isTeamMember(teamId) &&
+        getMember(teamId).role == 'owner';
+    }
+
+    // ─── Global Users ──────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && uid() == userId;
+    }
+
+    // ─── Memberships（輔助查詢集合） ───────────────────────────────────────────
+    match /memberships/{docId} {
+      allow read: if isSignedIn() && resource.data.uid == uid();
+      allow write: if false; // 只由 Cloud Functions / Admin SDK 寫入（或 rules 允許特定情境）
+    }
+
+    // ─── Teams ─────────────────────────────────────────────────────────────────
+    match /teams/{teamId} {
+      allow read: if isTeamMember(teamId);
+      allow create: if isSignedIn();
+      allow update: if isTeamAdmin(teamId);
+      allow delete: if isTeamOwner(teamId);
+
+      // Members
+      match /members/{memberId} {
+        allow read: if isTeamMember(teamId);
+        allow write: if isTeamAdmin(teamId);
+        // 允許自己加入（邀請連結）
+        allow create: if isSignedIn() && uid() == memberId;
+      }
+
+      // Invitations
+      match /invitations/{token} {
+        allow read: if true; // 邀請連結需公開讀取（驗證 token 有效）
+        allow create, update: if isTeamAdmin(teamId);
+        allow delete: if isTeamAdmin(teamId);
+      }
+
+      // Sessions
+      match /sessions/{sessionId} {
+        allow read: if isTeamMember(teamId);
+        allow create, update, delete: if isTeamAdmin(teamId);
+
+        // 允許成員在自己的崗位操作 (self-assign) — 由 transaction 保護
+        allow update: if isTeamMember(teamId);
+
+        // Comments
+        match /comments/{commentId} {
+          allow read: if isTeamMember(teamId);
+          allow create: if isTeamMember(teamId);
+          allow update: if isTeamMember(teamId) &&
+            (uid() == resource.data.userId || isTeamAdmin(teamId));
+          allow delete: if isTeamMember(teamId) &&
+            (uid() == resource.data.userId || isTeamAdmin(teamId));
+        }
+      }
+
+      // Swap Requests
+      match /swaps/{swapId} {
+        allow read: if isTeamMember(teamId);
+        allow create: if isTeamMember(teamId);
+        allow update: if isTeamMember(teamId) &&
+          (uid() == resource.data.targetId || isTeamAdmin(teamId));
+        allow delete: if isTeamAdmin(teamId);
+      }
+
+      // Availabilities
+      match /availabilities/{availId} {
+        allow read: if isTeamMember(teamId);
+        allow create: if isTeamMember(teamId) && uid() == request.resource.data.userId;
+        allow delete: if isTeamMember(teamId) && uid() == resource.data.userId;
+        allow read: if isTeamAdmin(teamId);
+      }
+    }
+
+    // ─── invitations_index（用於 token 查找） ──────────────────────────────────
+    match /invitations_index/{token} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+  }
+}

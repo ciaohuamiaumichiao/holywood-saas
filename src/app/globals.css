@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  --black: #0a0a0a;
+  --dark: #111111;
+  --dark-surface: #1a1a1a;
+  --dark-border: #2a2a2a;
+  --gold: #c8a455;
+  --gold-light: #e2c87d;
+  --gold-dim: rgba(200, 164, 85, 0.12);
+  --warm-white: #f0ebe0;
+  --muted: #8a8478;
+  --body-text: #b8b0a2;
+}
+
+@theme inline {
+  --color-background: var(--black);
+  --color-surface: var(--dark-surface);
+  --color-border: var(--dark-border);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-warm-white: var(--warm-white);
+  --color-muted: var(--muted);
+  --color-body: var(--body-text);
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-sans: 'Noto Sans TC', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--black);
+  color: var(--body-text);
+  font-family: 'Noto Sans TC', sans-serif;
+  font-weight: 300;
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--black);
+}
+
+input, select, textarea {
+  font-family: 'Noto Sans TC', sans-serif;
+}
