@@ -23,28 +23,36 @@ function getToday() {
 const DEMO_SESSIONS: Session[] = [
   {
     id: 'demo-1',
+    teamId: 'demo',
+    type: 'regular',
     date: '2026-03-10',
     title: '主日崇拜 A 場',
     startTime: '09:00',
     endTime: '11:00',
     announcement: '本週為特別崇拜，請提早 30 分鐘到場',
+    createdAt: 0,
+    createdBy: '',
     assignments: {
-      'role-worship': { uid: 'u1', displayName: '王小明', photoURL: '' },
-      'role-sound': { uid: 'u2', displayName: '李美華', photoURL: '' },
-      'role-camera': { uid: '', displayName: '', photoURL: '' },
+      'role-worship': { userId: 'u1', displayName: '王小明', photoURL: '' },
+      'role-sound': { userId: 'u2', displayName: '李美華', photoURL: '' },
+      'role-camera': { userId: '', displayName: '', photoURL: '' },
     },
   },
   {
     id: 'demo-2',
+    teamId: 'demo',
+    type: 'regular',
     date: '2026-03-10',
     title: '主日崇拜 B 場',
     startTime: '11:30',
     endTime: '13:00',
     announcement: '',
+    createdAt: 0,
+    createdBy: '',
     assignments: {
-      'role-worship': { uid: 'u3', displayName: '陳大衛', photoURL: '' },
-      'role-sound': { uid: '', displayName: '', photoURL: '' },
-      'role-camera': { uid: 'u4', displayName: '張小花', photoURL: '' },
+      'role-worship': { userId: 'u3', displayName: '陳大衛', photoURL: '' },
+      'role-sound': { userId: '', displayName: '', photoURL: '' },
+      'role-camera': { userId: 'u4', displayName: '張小花', photoURL: '' },
     },
   },
 ]
@@ -131,7 +139,7 @@ export default function BoardPage() {
               {/* Roles */}
               {roles.map((role, idx) => {
                 const assignment = assignments[role.id]
-                const hasAssignment = assignment && assignment.uid && assignment.displayName
+                const hasAssignment = assignment && assignment.userId && assignment.displayName
 
                 return (
                   <div key={role.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: idx < roles.length - 1 ? '1px solid var(--dark-border)' : 'none' }}>
