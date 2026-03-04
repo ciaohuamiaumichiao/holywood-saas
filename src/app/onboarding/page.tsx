@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
@@ -19,7 +19,7 @@ const DEFAULT_ROLES: RoleConfig[] = [
 ]
 
 export default function OnboardingPage() {
-  const { user, profile } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const { refreshTeams } = useTeam()
   const router = useRouter()
 
@@ -28,6 +28,12 @@ export default function OnboardingPage() {
   const [newRoleLabel, setNewRoleLabel] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/')
+    }
+  }, [authLoading, user, router])
 
   const handleAddRole = () => {
     const label = newRoleLabel.trim()
@@ -44,7 +50,7 @@ export default function OnboardingPage() {
   const handleCreate = async () => {
     const name = teamName.trim()
     if (!name) { setError('請輸入團隊名稱'); return }
-    if (!user || !profile) return
+    if (!user) return
     if (roles.length === 0) { setError('至少需要一個崗位'); return }
 
     setCreating(true)
@@ -56,9 +62,9 @@ export default function OnboardingPage() {
         slug + '-' + Date.now().toString(36),
         roles,
         user.uid,
-        profile.displayName,
-        profile.photoURL,
-        profile.email,
+        profile?.displayName || user.displayName || '',
+        profile?.photoURL || user.photoURL || '',
+        profile?.email || user.email || '',
       )
       await refreshTeams()
       router.replace('/schedule?team=' + teamId)
@@ -69,6 +75,8 @@ export default function OnboardingPage() {
       setCreating(false)
     }
   }
+
+  if (authLoading || !user) return null
 
   return (
     <main style={{ minHeight: '100vh', background: 'var(--black)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1.5rem' }}>

@@ -23,16 +23,16 @@ function getToday() {
 
 export default function MySchedulePage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { activeTeam, activeTeamId } = useTeam()
 
   const [sessions, setSessions] = useState<Session[]>([])
 
   useEffect(() => {
-    if (!user) {
-      router.push('/')
+    if (!authLoading && !user) {
+      router.replace('/')
     }
-  }, [user, router])
+  }, [authLoading, user, router])
 
   useEffect(() => {
     if (!activeTeamId) return
@@ -40,7 +40,7 @@ export default function MySchedulePage() {
     return () => unsub()
   }, [activeTeamId])
 
-  if (!user) return null
+  if (authLoading || !user) return null
 
   if (!activeTeamId) {
     return (

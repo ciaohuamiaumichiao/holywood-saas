@@ -23,7 +23,7 @@ function getToday() {
 
 export default function AvailabilityPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { activeTeamId } = useTeam()
 
   const [sessions, setSessions] = useState<Session[]>([])
@@ -31,10 +31,10 @@ export default function AvailabilityPage() {
   const [loading, setLoading] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!user) {
-      router.push('/')
+    if (!authLoading && !user) {
+      router.replace('/')
     }
-  }, [user, router])
+  }, [authLoading, user, router])
 
   useEffect(() => {
     if (!activeTeamId) return
@@ -48,7 +48,7 @@ export default function AvailabilityPage() {
     return () => unsub()
   }, [activeTeamId, user])
 
-  if (!user) return null
+  if (authLoading || !user) return null
 
   if (!activeTeamId) {
     return (

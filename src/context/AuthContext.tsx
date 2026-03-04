@@ -87,20 +87,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser)
-      if (firebaseUser) {
-        setAuthError(null)
-        await upsertUser({
-          uid: firebaseUser.uid,
-          displayName: firebaseUser.displayName ?? '',
-          email: firebaseUser.email ?? '',
-          photoURL: firebaseUser.photoURL ?? '',
-        })
-        const p = await getUser(firebaseUser.uid)
-        setProfile(p)
-      } else {
-        setProfile(null)
+      try {
+        if (firebaseUser) {
+          setAuthError(null)
+          await upsertUser({
+            uid: firebaseUser.uid,
+            displayName: firebaseUser.displayName ?? '',
+            email: firebaseUser.email ?? '',
+            photoURL: firebaseUser.photoURL ?? '',
+          })
+          const p = await getUser(firebaseUser.uid)
+          setProfile(p)
+        } else {
+          setProfile(null)
+        }
+      } catch (error) {
+        console.error('[auth] failed to sync user profile', error)
+        if (firebaseUser) {
+          setProfile({
+            uid: firebaseUser.uid,
+            displayName: firebaseUser.displayName ?? '',
+            email: firebaseUser.email ?? '',
+            photoURL: firebaseUser.photoURL ?? '',
+            createdAt: Date.now(),
+          })
+        } else {
+          setProfile(null)
+        }
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     })
     return unsub
   }, [])

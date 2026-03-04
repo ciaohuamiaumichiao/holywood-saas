@@ -24,7 +24,7 @@ function getToday() {
 
 export default function SchedulePage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { activeTeam, activeTeamId, activeMember } = useTeam()
 
   const [sessions, setSessions] = useState<Session[]>([])
@@ -32,10 +32,10 @@ export default function SchedulePage() {
   const [outgoing, setOutgoing] = useState<SwapRequest[]>([])
 
   useEffect(() => {
-    if (!user) {
-      router.push('/')
+    if (!authLoading && !user) {
+      router.replace('/')
     }
-  }, [user, router])
+  }, [authLoading, user, router])
 
   useEffect(() => {
     if (!activeTeamId) return
@@ -55,7 +55,7 @@ export default function SchedulePage() {
     return () => unsub()
   }, [activeTeamId, user])
 
-  if (!user) return null
+  if (authLoading || !user) return null
 
   if (!activeTeamId) {
     return (

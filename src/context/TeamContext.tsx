@@ -26,13 +26,17 @@ const TeamContext = createContext<TeamContextType>({
 })
 
 export function TeamProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [teams, setTeams] = useState<Team[]>([])
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null)
   const [activeMember, setActiveMember] = useState<TeamMember | null>(null)
   const [loadingTeams, setLoadingTeams] = useState(true)
 
   const fetchTeams = useCallback(async () => {
+    if (authLoading) {
+      setLoadingTeams(true)
+      return
+    }
     if (!user) {
       setTeams([])
       setActiveTeamId(null)
@@ -50,7 +54,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoadingTeams(false)
     }
-  }, [user])
+  }, [authLoading, user])
 
   useEffect(() => {
     fetchTeams()
