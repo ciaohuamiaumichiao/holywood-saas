@@ -64,6 +64,40 @@ export interface Assignment {
   photoURL?: string
 }
 
+// ─── Slot / Event (Week2 新模型) ─────────────────────────────────────────────
+export interface Event {
+  id: string
+  teamId: string
+  title: string
+  date: string              // YYYY-MM-DD（主要日期，用於列表）
+  type: 'regular' | 'special'
+  description?: string
+  legacySessionId?: string  // 由舊 session 轉換時帶入
+  createdAt: number
+  createdBy: string
+}
+
+export interface SlotAssignment extends Assignment {
+  assignedAt: number
+}
+
+export interface Slot {
+  id: string
+  teamId: string
+  eventId: string
+  roleId: Role
+  slotDate: string            // YYYY-MM-DD，便於同日查詢
+  startsAt: string            // ISO-like string "2026-03-10T09:00"
+  endsAt: string              // ISO-like string
+  capacity: number
+  assigneeIds: string[]       // for fast queries
+  assignments: Record<string, SlotAssignment> // key = userId
+  title?: string
+  location?: string
+  createdAt: number
+  createdBy: string
+}
+
 // ─── Session ──────────────────────────────────────────────────────────────────
 export interface Session {
   id: string

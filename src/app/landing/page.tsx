@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 
-const DEMO_URL = '/'
+const DEMO_URL = '/login'
 
 export default function LandingPage() {
   return (
