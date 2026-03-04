@@ -109,7 +109,9 @@ export default function LandingPage() {
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(200,164,85,0.04)' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--dark-surface)' }}
               >
-                <div style={{ fontSize: '1.5rem', marginBottom: '0.8rem' }}>{f.icon}</div>
+                <div style={{ marginBottom: '0.8rem' }}>
+                  <LineIcon type={f.icon} />
+                </div>
                 <h3 style={{ fontSize: '0.95rem', color: 'var(--warm-white)', marginBottom: '0.5rem', fontWeight: 500 }}>{f.title}</h3>
                 <p style={{ fontSize: '0.82rem', color: 'var(--muted)', lineHeight: 1.8 }}>{f.desc}</p>
               </div>
@@ -147,7 +149,9 @@ export default function LandingPage() {
                 }}>
                   {String(i + 1).padStart(2, '0')}
                 </div>
-                <div style={{ fontSize: '1.3rem', marginBottom: '0.75rem' }}>{s.icon}</div>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <CircleNumber index={i + 1} />
+                </div>
                 <h3 style={{ fontSize: '0.9rem', color: 'var(--warm-white)', marginBottom: '0.4rem', fontWeight: 500 }}>{s.title}</h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--muted)', lineHeight: 1.8 }}>{s.desc}</p>
               </div>
@@ -206,6 +210,38 @@ function SectionHeader({ tag, title, desc }: { tag: string; title: string; desc?
       </h2>
       {desc && <p style={{ fontSize: '0.88rem', color: 'var(--muted)', maxWidth: 520, margin: '0 auto', lineHeight: 1.9 }}>{desc}</p>}
     </div>
+  )
+}
+
+function LineIcon({ type }: { type: string }) {
+  const common = { width: 26, height: 26, stroke: 'var(--gold)', strokeWidth: 1.6, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' } as const
+  switch (type) {
+    case 'grid':
+      return <svg {...common} viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" /><rect x="14" y="4" width="6" height="6" /><rect x="4" y="14" width="6" height="6" /><rect x="14" y="14" width="6" height="6" /></svg>
+    case 'sliders':
+      return <svg {...common} viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6" /><circle cx="10" cy="6" r="2" /><line x1="4" y1="12" x2="20" y2="12" /><circle cx="14" cy="12" r="2" /><line x1="4" y1="18" x2="20" y2="18" /><circle cx="8" cy="18" r="2" /></svg>
+    case 'zap':
+      return <svg {...common} viewBox="0 0 24 24"><polyline points="13 2 4 14 12 14 11 22 20 10 12 10 13 2" /></svg>
+    case 'swap':
+      return <svg {...common} viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8" /><polyline points="8 21 3 21 3 16" /><line x1="21" y1="3" x2="10" y2="14" /><line x1="3" y1="21" x2="14" y2="10" /></svg>
+    case 'calendar':
+      return <svg {...common} viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2" /><line x1="4" y1="9" x2="20" y2="9" /><line x1="9" y1="3" x2="9" y2="7" /><line x1="15" y1="3" x2="15" y2="7" /><rect x="8" y="12" width="3" height="3" fill="var(--gold)" stroke="none" /><rect x="13" y="12" width="3" height="3" fill="var(--gold)" stroke="none" /></svg>
+    case 'link':
+      return <svg {...common} viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.07 0l2.12-2.12a5 5 0 0 0-7.07-7.07L10.9 5" /><path d="M14 11a5 5 0 0 0-7.07 0L4.81 13.1a5 5 0 0 0 7.07 7.07L13.1 18" /></svg>
+    default:
+      return <svg {...common} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /></svg>
+  }
+}
+
+function CircleNumber({ index }: { index: number }) {
+  const label = String(index).padStart(2, '0')
+  return (
+    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+      <circle cx="21" cy="21" r="20" stroke="var(--dark-border)" strokeWidth="1.2" />
+      <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontFamily="Bebas Neue, sans-serif" fontSize="14" letterSpacing="2" fill="var(--gold)">
+        {label}
+      </text>
+    </svg>
   )
 }
 
@@ -390,17 +426,17 @@ function MockAvailability() {
 // ── 資料 ──────────────────────────────────────────────────────────────────────
 
 const FEATURES = [
-  { icon: '🏢', title: '多租戶團隊隔離', desc: '每個教會/機構擁有獨立的資料空間，成員只能看到自己團隊的排班，資料完全隔離。' },
-  { icon: '⚙️', title: '崗位彈性設定', desc: '導播、攝影師、直播技術……崗位由管理員自訂，完全配合你的服事編制。' },
-  { icon: '⚡', title: '即時排班同步', desc: '任何更新都即時同步到所有成員的裝置，不再因資訊落差造成混亂。' },
-  { icon: '🔄', title: '換班申請系統', desc: '成員可主動向隊友申請換班，對方同意後自動更新排班，管理員不必手動處理。' },
-  { icon: '📅', title: '可用日期登記', desc: '成員提前標記可以參與的日期，管理員在分配崗位時可參考，大幅提升排班效率。' },
-  { icon: '🔗', title: '邀請連結加入', desc: '管理員產生邀請連結，分享給新成員，對方用 Google 登入後即可加入，零摩擦。' },
+  { icon: 'grid', title: '多租戶團隊隔離', desc: '每個教會、場館或社企據點擁有獨立資料空間，成員只能看到自己的團隊。' },
+  { icon: 'sliders', title: '崗位彈性設定', desc: '音控、燈光、影像導播、招待、志工、市集攤位…角色由你自訂，完全貼合現場編制。' },
+  { icon: 'zap', title: '即時排班同步', desc: '排班、調度、公告立即同步所有人，不再因截圖或舊版表單造成錯位。' },
+  { icon: 'swap', title: '換班申請系統', desc: '成員直接對同仁發起換班請求，雙方同意即自動更新，減少管理者協調成本。' },
+  { icon: 'calendar', title: '可用時段登記', desc: '先收集大家可服務的時段，再排班；支援不定期活動、多場次與多時段。' },
+  { icon: 'link', title: '邀請連結加入', desc: '產生邀請連結分享出去，新人用 Google 登入即可加入，零帳號申請流程。' },
 ]
 
 const STEPS = [
-  { icon: '①', title: '用 Google 登入', desc: '只需 Google 帳號，30 秒完成登入，不用另外建立帳號密碼。' },
-  { icon: '②', title: '建立團隊', desc: '輸入團隊名稱，設定你需要的崗位清單，立即建立屬於自己的排班空間。' },
-  { icon: '③', title: '邀請成員', desc: '產生邀請連結，傳給 LINE/Slack 群組，成員點擊即可加入。' },
-  { icon: '④', title: '開始排班', desc: '建立場次、分配崗位，成員可自主報名，換班申請也全程線上處理。' },
+  { icon: 'step', title: '用 Google 登入', desc: '只需 Google 帳號，30 秒完成登入，不用另外建立帳號密碼。' },
+  { icon: 'step', title: '建立團隊', desc: '輸入團隊或據點名稱，設定需要的崗位清單，立即建立排班空間。' },
+  { icon: 'step', title: '邀請成員', desc: '產生邀請連結，傳給 LINE / Slack / Email，成員點擊即可加入。' },
+  { icon: 'step', title: '開始排班', desc: '建立活動、設定多個時段與名額，成員可自主報名、換班，全程線上處理。' },
 ]
