@@ -1,12 +1,12 @@
 'use client'
-import { useEffect, useState } from 'react'
+/* eslint-disable @next/next/no-img-element */
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Navbar from '@/components/Navbar'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
-import Navbar from '@/components/Navbar'
-import { subscribeToSessions, subscribeToMySwaps, subscribeToMyOutgoingSwaps, createSwapRequest } from '@/lib/firestore'
-import { postJsonWithAuth } from '@/lib/authed-post'
-import { Session, SwapRequest, RoleConfig } from '@/lib/types'
+import { subscribeToEvents, subscribeTeamSlots, assignSlot, unassignSlot } from '@/lib/firestore'
+import { Event, RoleConfig, Slot } from '@/lib/types'
 
 const WEEKDAY_ZH = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -22,265 +22,248 @@ function getToday() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function formatTimeRange(slot: Slot) {
+  const start = slot.startsAt.slice(11, 16)
+  const end = slot.endsAt?.slice(11, 16)
+  return end ? `${start}–${end}` : start
+}
+
 export default function SchedulePage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
-  const { activeTeam, activeTeamId, activeMember } = useTeam()
+  const { activeTeam, activeTeamId } = useTeam()
 
-  const [sessions, setSessions] = useState<Session[]>([])
-  const [mySwaps, setMySwaps] = useState<SwapRequest[]>([])
-  const [outgoing, setOutgoing] = useState<SwapRequest[]>([])
+  const [events, setEvents] = useState<Event[]>([])
+  const [slots, setSlots] = useState<Slot[]>([])
+  const [busy, setBusy] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace('/')
+      router.replace('/login')
     }
   }, [authLoading, user, router])
 
   useEffect(() => {
     if (!activeTeamId) return
-    const unsub = subscribeToSessions(activeTeamId, setSessions)
+    const unsub = subscribeToEvents(activeTeamId, setEvents)
     return () => unsub()
   }, [activeTeamId])
 
   useEffect(() => {
-    if (!activeTeamId || !user) return
-    const unsub = subscribeToMySwaps(activeTeamId, user.uid, setMySwaps)
+    if (!activeTeamId) return
+    const unsub = subscribeTeamSlots(activeTeamId, setSlots)
     return () => unsub()
-  }, [activeTeamId, user])
-
-  useEffect(() => {
-    if (!activeTeamId || !user) return
-    const unsub = subscribeToMyOutgoingSwaps(activeTeamId, user.uid, setOutgoing)
-    return () => unsub()
-  }, [activeTeamId, user])
-
-  if (authLoading || !user) return null
-
-  if (!activeTeamId) {
-    return (
-      <>
-        <Navbar />
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem 1.5rem' }}>
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>尚未選擇團隊</p>
-        </div>
-      </>
-    )
-  }
+  }, [activeTeamId])
 
   const roles: RoleConfig[] = activeTeam?.roles
     ? [...activeTeam.roles].sort((a, b) => a.order - b.order)
     : []
 
+  const roleLabel = (roleId: string) => roles.find(r => r.id === roleId)?.label || roleId
+
   const today = getToday()
-  const futureSessions = sessions
-    .filter(s => s.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date))
-
-  const userId = user.uid
-  const displayName = user.displayName || ''
-  const photoURL = user.photoURL || ''
-
-  async function handleAssign(sessionId: string, roleId: string) {
-    if (!activeTeamId) return
-    await postJsonWithAuth('/api/sessions/self-assignment', {
-      teamId: activeTeamId,
-      sessionId,
-      roleId,
-      action: 'assign',
+  const futureSlots = slots.filter(s => s.slotDate >= today)
+  const futureEvents = useMemo(() => {
+    return events.filter((event) => event.date >= today || Boolean(futureSlots.some((slot) => slot.eventId === event.id)))
+  }, [events, futureSlots, today])
+  const slotsByEvent = useMemo(() => {
+    const grouped: Record<string, Slot[]> = {}
+    futureSlots.forEach(s => {
+      if (!grouped[s.eventId]) grouped[s.eventId] = []
+      grouped[s.eventId].push(s)
     })
+    Object.values(grouped).forEach(list => list.sort((a, b) => a.slotDate.localeCompare(b.slotDate) || a.startsAt.localeCompare(b.startsAt)))
+    return grouped
+  }, [futureSlots])
+
+  const sortedEvents = useMemo(() => {
+    return futureEvents
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }, [futureEvents])
+
+  if (authLoading || !user) return null
+
+  async function handleAssign(slot: Slot) {
+    if (!activeTeamId || !user) return
+    setBusy(slot.id)
+    setFeedback(null)
+    try {
+      const result = await assignSlot(activeTeamId, slot.id, {
+        uid: user.uid,
+        displayName: user.displayName || '',
+        photoURL: user.photoURL || '',
+      })
+      if (result === 'full') setFeedback({ type: 'error', text: '此時段名額已滿' })
+      else if (result === 'conflict') setFeedback({ type: 'error', text: '與你已報名的時段時間重疊' })
+      else if (result === 'not_found') setFeedback({ type: 'error', text: '此時段已不存在' })
+      else setFeedback({ type: 'success', text: '報名成功' })
+    } finally {
+      setBusy(null)
+    }
   }
 
-  async function handleUnassign(sessionId: string, roleId: string) {
-    if (!activeTeamId) return
-    await postJsonWithAuth('/api/sessions/self-assignment', {
-      teamId: activeTeamId,
-      sessionId,
-      roleId,
-      action: 'unassign',
-    })
-  }
-
-  async function handleSwapRequest(session: Session, roleId: string, targetId: string, targetName: string, targetPhoto: string) {
-    if (!activeTeamId) return
-    const myRoleId = Object.entries(session.assignments || {}).find(([, a]) => a.userId === userId)?.[0]
-    if (!myRoleId) return
-    const myRoleLabel = roles.find(r => r.id === myRoleId)?.label || myRoleId
-    await createSwapRequest(activeTeamId, {
-      sessionId: session.id,
-      sessionDate: session.date,
-      sessionTitle: session.title,
-      role: myRoleId,
-      roleLabel: myRoleLabel,
-      requesterId: userId,
-      requesterName: displayName,
-      requesterPhoto: photoURL,
-      targetId,
-      targetName,
-      targetPhoto,
-      status: 'pending',
-    })
-  }
-
-  async function handleRespondSwap(swapId: string, resp: 'accepted' | 'rejected') {
-    if (!activeTeamId) return
-    await postJsonWithAuth('/api/swaps/respond', {
-      teamId: activeTeamId,
-      swapId,
-      response: resp,
-    })
+  async function handleUnassign(slot: Slot) {
+    if (!activeTeamId || !user) return
+    setBusy(slot.id)
+    setFeedback(null)
+    try {
+      await unassignSlot(activeTeamId, slot.id, user.uid)
+      setFeedback({ type: 'success', text: '已取消報名' })
+    } finally {
+      setBusy(null)
+    }
   }
 
   return (
     <>
       <Navbar />
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem 1.5rem' }}>
-        <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.8rem', letterSpacing: '0.15em', color: 'var(--warm-white)', marginBottom: '1.5rem' }}>
-          排班表
+      <div style={{ maxWidth: 980, margin: '0 auto', padding: '2rem 1.2rem 3rem' }}>
+        <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.9rem', letterSpacing: '0.14em', color: 'var(--warm-white)', marginBottom: '0.75rem' }}>
+          排班表（時段制）
         </h1>
+        <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '1.2rem' }}>
+          依活動與時段報名；同一時段不可重複佔位。
+        </p>
 
-        {/* Incoming swap requests */}
-        {mySwaps.length > 0 && (
-          <div style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', letterSpacing: '0.12em', color: 'var(--gold)', marginBottom: '0.75rem' }}>
-              換班申請（待回應）
-            </h2>
-            {mySwaps.map(sw => (
-              <div key={sw.id} style={{ background: 'var(--dark-surface)', border: '1px solid var(--gold)', padding: '1rem 1.25rem', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--warm-white)' }}>
-                    {sw.requesterName}
-                  </span>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--muted)', marginLeft: '0.5rem' }}>
-                    申請換班｜{sw.sessionDate} {sw.sessionTitle}｜{sw.roleLabel || sw.role}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
-                    onClick={() => handleRespondSwap(sw.id, 'accepted')}
-                    style={{ background: 'rgba(200,164,85,0.08)', border: '1px solid rgba(200,164,85,0.3)', color: 'var(--gold)', fontSize: '0.72rem', padding: '0.3rem 0.75rem', cursor: 'pointer' }}
-                  >
-                    接受
-                  </button>
-                  <button
-                    onClick={() => handleRespondSwap(sw.id, 'rejected')}
-                    style={{ background: 'transparent', border: '1px solid var(--dark-border)', color: 'var(--muted)', fontSize: '0.72rem', padding: '0.3rem 0.75rem', cursor: 'pointer' }}
-                  >
-                    拒絕
-                  </button>
-                </div>
-              </div>
-            ))}
+        {feedback && (
+          <div style={{
+            background: feedback.type === 'error' ? 'rgba(224,85,85,0.08)' : 'rgba(118,188,129,0.08)',
+            border: `1px solid ${feedback.type === 'error' ? 'rgba(224,85,85,0.4)' : 'rgba(118,188,129,0.4)'}`,
+            color: feedback.type === 'error' ? '#f08' : '#82c49b',
+            padding: '0.75rem 1rem',
+            borderRadius: 10,
+            marginBottom: '1rem',
+            fontSize: '0.86rem',
+          }}>
+            {feedback.text}
           </div>
         )}
 
-        {/* Outgoing swap requests status */}
-        {outgoing.length > 0 && (
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', letterSpacing: '0.12em', color: 'var(--muted)', marginBottom: '0.5rem' }}>
-              我的換班申請（寄出）
-            </h2>
-            {outgoing.map(sw => (
-              <div key={sw.id} style={{ fontSize: '0.78rem', color: 'var(--muted)', marginBottom: '0.35rem' }}>
-                → {sw.targetName}｜{sw.sessionDate} {sw.sessionTitle}｜{sw.roleLabel || sw.role}｜
-                <span style={{ color: sw.status === 'accepted' ? 'var(--gold)' : sw.status === 'rejected' ? '#e05' : 'var(--muted)' }}>
-                  {sw.status === 'pending' ? '待回應' : sw.status === 'accepted' ? '已接受' : '已拒絕'}
-                </span>
-              </div>
-            ))}
-          </div>
+        {sortedEvents.length === 0 && (
+          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>目前沒有即將到來的活動或時段</p>
         )}
 
-        {/* Sessions */}
-        {futureSessions.length === 0 && (
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>目前沒有即將到來的場次</p>
-        )}
-
-        {futureSessions.map(session => {
-          const assignments = session.assignments || {}
-          const myRoleId = Object.entries(assignments).find(([, a]) => a.userId === userId)?.[0]
+        {sortedEvents.map(event => {
+          const eventSlots = slotsByEvent[event.id] || []
 
           return (
-            <div key={session.id} style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', padding: '1.25rem 1.5rem', marginBottom: '1rem' }}>
-              {/* Session header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.75rem' }}>
-                <div>
-                  <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', letterSpacing: '0.1em', color: 'var(--gold)', marginRight: '0.75rem' }}>
-                    {formatDate(session.date)}
+            <div key={event.id} style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', padding: '1.25rem 1.4rem', marginBottom: '1rem', borderRadius: 12 }}>
+              {/* Event header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.8rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', letterSpacing: '0.1em', color: 'var(--gold)' }}>
+                    {formatDate(event.date)}
                   </span>
-                  <span style={{ fontSize: '0.95rem', color: 'var(--warm-white)' }}>
-                    {session.title}
+                  <span style={{ fontSize: '0.95rem', color: 'var(--warm-white)' }}>{event.title}</span>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    background: event.type === 'special' ? 'rgba(200,164,85,0.2)' : 'rgba(138,132,120,0.15)',
+                    color: event.type === 'special' ? 'var(--gold)' : 'var(--muted)'
+                  }}>
+                    {event.type === 'special' ? '特別' : '一般'}
                   </span>
                 </div>
-                <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
-                  {session.startTime}–{session.endTime}
-                </span>
               </div>
-
-              {/* Announcement */}
-              {session.announcement && (
-                <div style={{ border: '1px solid var(--gold)', padding: '0.6rem 0.9rem', marginBottom: '0.75rem', fontSize: '0.8rem', color: 'var(--gold-light)' }}>
-                  {session.announcement}
+              {event.description && (
+                <div style={{ fontSize: '0.82rem', color: 'var(--muted)', marginBottom: '0.8rem' }}>
+                  {event.description}
                 </div>
               )}
 
-              {/* Roles */}
-              {roles.map((role, idx) => {
-                const assignment = assignments[role.id]
-                const isMe = assignment?.userId === userId
-                const isMyRole = myRoleId === role.id
-                const isOtherAssigned = assignment && !isMe
+              {eventSlots.length === 0 && (
+                <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>此活動尚無時段</p>
+              )}
 
-                return (
-                  <div key={role.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: idx < roles.length - 1 ? '1px solid var(--dark-border)' : 'none' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--muted)', letterSpacing: '0.08em', minWidth: 90 }}>
-                      {role.label}
-                    </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {eventSlots.map(slot => {
+                  const assignees = Object.values(slot.assignments || {})
+                  const isMe = slot.assigneeIds?.includes(user.uid)
+                  const isFull = (slot.assigneeIds?.length || 0) >= slot.capacity
+                  const btnDisabled = busy === slot.id
+                  return (
+                    <div key={slot.id} style={{
+                      border: '1px solid var(--dark-border)',
+                      borderRadius: 10,
+                      padding: '0.75rem 0.9rem',
+                      display: 'grid',
+                      gridTemplateColumns: '140px 1fr auto',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      background: 'rgba(255,255,255,0.01)',
+                    }}>
+                      <div>
+                        <div style={{ color: 'var(--muted)', fontSize: '0.78rem', letterSpacing: '0.08em' }}>
+                          {slot.slotDate && formatDate(slot.slotDate)}
+                        </div>
+                        <div style={{ color: 'var(--warm-white)', fontWeight: 600, fontSize: '0.95rem' }}>
+                          {formatTimeRange(slot)}
+                        </div>
+                      </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, paddingLeft: '1rem' }}>
-                      {assignment ? (
-                        <>
-                          {assignment.photoURL && (
-                            <img src={assignment.photoURL} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />
-                          )}
-                          <span style={{ fontSize: '0.85rem', color: isMe ? 'var(--gold)' : 'var(--warm-white)' }}>
-                            {assignment.displayName}{isMe ? '（我）' : ''}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.9rem', color: 'var(--warm-white)' }}>{slot.title || roleLabel(slot.roleId)}</span>
+                          <span style={{ fontSize: '0.76rem', color: 'var(--muted)', letterSpacing: '0.05em' }}>
+                            {roleLabel(slot.roleId)} · {assignees.length}/{slot.capacity}
                           </span>
-                        </>
-                      ) : (
-                        <span style={{ fontSize: '0.82rem', color: 'var(--muted)', fontStyle: 'italic' }}>— 空缺 —</span>
-                      )}
-                    </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          {assignees.map(a => (
+                            <div key={a.userId} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid var(--dark-border)' }}>
+                              {a.photoURL && <img src={a.photoURL} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />}
+                              <span style={{ color: a.userId === user.uid ? 'var(--gold)' : 'var(--warm-white)', fontSize: '0.82rem' }}>
+                                {a.displayName}{a.userId === user.uid ? '（我）' : ''}
+                              </span>
+                            </div>
+                          ))}
+                          {assignees.length === 0 && (
+                            <span style={{ color: 'var(--muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>尚無報名</span>
+                          )}
+                        </div>
+                      </div>
 
-                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                      {isMe && (
-                        <button
-                          onClick={() => handleUnassign(session.id, role.id)}
-                          style={{ background: 'transparent', border: '1px solid var(--dark-border)', color: 'var(--muted)', fontSize: '0.72rem', padding: '0.25rem 0.6rem', cursor: 'pointer' }}
-                        >
-                          取消報名
-                        </button>
-                      )}
-                      {!assignment && !myRoleId && (
-                        <button
-                          onClick={() => handleAssign(session.id, role.id)}
-                          style={{ background: 'rgba(200,164,85,0.08)', border: '1px solid rgba(200,164,85,0.3)', color: 'var(--gold)', fontSize: '0.72rem', padding: '0.25rem 0.6rem', cursor: 'pointer' }}
-                        >
-                          報名
-                        </button>
-                      )}
-                      {myRoleId && isOtherAssigned && (
-                        <button
-                          onClick={() => handleSwapRequest(session, role.id, assignment.userId, assignment.displayName, assignment.photoURL || '')}
-                          style={{ background: 'rgba(200,164,85,0.08)', border: '1px solid rgba(200,164,85,0.3)', color: 'var(--gold)', fontSize: '0.72rem', padding: '0.25rem 0.6rem', cursor: 'pointer' }}
-                        >
-                          申請換班
-                        </button>
-                      )}
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        {isMe ? (
+                          <button
+                            onClick={() => handleUnassign(slot)}
+                            disabled={btnDisabled}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid var(--dark-border)',
+                              color: 'var(--muted)',
+                              fontSize: '0.8rem',
+                              padding: '0.35rem 0.9rem',
+                              cursor: btnDisabled ? 'wait' : 'pointer',
+                              borderRadius: 8,
+                            }}
+                          >
+                            取消報名
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleAssign(slot)}
+                            disabled={btnDisabled || isFull}
+                            style={{
+                              background: isFull ? 'var(--dark-border)' : 'rgba(200,164,85,0.12)',
+                              border: `1px solid ${isFull ? 'var(--dark-border)' : 'rgba(200,164,85,0.4)'}`,
+                              color: isFull ? 'var(--muted)' : 'var(--gold)',
+                              fontSize: '0.8rem',
+                              padding: '0.35rem 0.9rem',
+                              cursor: btnDisabled || isFull ? 'not-allowed' : 'pointer',
+                              borderRadius: 8,
+                            }}
+                          >
+                            {isFull ? '名額已滿' : '報名'}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           )
         })}

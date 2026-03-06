@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
-import { createTeam } from '@/lib/firestore-teams'
+import { DEMO_TEAM_LIMIT, DEMO_TEAM_LIMIT_MESSAGE } from '@/lib/demo-config'
+import { getTeam } from '@/lib/firestore-teams'
+import { postJsonWithAuth } from '@/lib/authed-post'
 import { RoleConfig } from '@/lib/types'
 
 const DEFAULT_ROLES: RoleConfig[] = [
@@ -19,8 +21,8 @@ const DEFAULT_ROLES: RoleConfig[] = [
 ]
 
 export default function OnboardingPage() {
-  const { user, profile, loading: authLoading } = useAuth()
-  const { refreshTeams } = useTeam()
+  const { user, loading: authLoading } = useAuth()
+  const { refreshTeams, switchTeam, teams, loadingTeams } = useTeam()
   const router = useRouter()
 
   const [teamName, setTeamName] = useState('')
@@ -28,6 +30,8 @@ export default function OnboardingPage() {
   const [newRoleLabel, setNewRoleLabel] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
+  const ownedTeamCount = user ? teams.filter(team => team.createdBy === user.uid).length : 0
+  const hasReachedTeamLimit = ownedTeamCount >= DEMO_TEAM_LIMIT
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -52,24 +56,38 @@ export default function OnboardingPage() {
     if (!name) { setError('請輸入團隊名稱'); return }
     if (!user) return
     if (roles.length === 0) { setError('至少需要一個崗位'); return }
+    if (loadingTeams) { setError('正在確認可建立的團隊數量，請稍後再試。'); return }
+    if (hasReachedTeamLimit) { setError(DEMO_TEAM_LIMIT_MESSAGE); return }
 
     setCreating(true)
     setError('')
     try {
       const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'team'
-      const teamId = await createTeam(
+      const { teamId } = await postJsonWithAuth<{ teamId: string }>('/api/teams/create', {
         name,
-        slug + '-' + Date.now().toString(36),
+        slug: slug + '-' + Date.now().toString(36),
         roles,
-        user.uid,
-        profile?.displayName || user.displayName || '',
-        profile?.photoURL || user.photoURL || '',
-        profile?.email || user.email || '',
-      )
-      await refreshTeams()
+      })
+      const created = await getTeam(teamId)
+      if (!created) {
+        throw new Error('team_not_found_after_create')
+      }
+      try {
+        localStorage.setItem('lastCreatedTeamId', teamId)
+      } catch {
+        // ignore storage errors
+      }
+      try {
+        await refreshTeams()
+      } catch (refreshError) {
+        console.error('[onboarding] refreshTeams failed after createTeam', refreshError)
+      }
+      switchTeam(teamId)
       router.replace('/schedule?team=' + teamId)
     } catch (e) {
-      setError('建立失敗，請稍後再試')
+      const code = typeof e === 'object' && e !== null && 'code' in e ? String((e as { code?: unknown }).code ?? '') : ''
+      const message = typeof e === 'object' && e !== null && 'message' in e ? String((e as { message?: unknown }).message ?? '') : ''
+      setError(`建立失敗：${[code, message].filter(Boolean).join(' ') || '請稍後再試'}`)
       console.error(e)
     } finally {
       setCreating(false)
@@ -91,6 +109,20 @@ export default function OnboardingPage() {
           </h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--muted)', lineHeight: 1.7 }}>
             設定團隊名稱與崗位清單，完成後即可開始排班。
+          </p>
+        </div>
+
+        <div style={{
+          marginBottom: '1.2rem',
+          padding: '0.9rem 1rem',
+          border: `1px solid ${hasReachedTeamLimit ? 'rgba(224,85,85,0.35)' : 'rgba(200,164,85,0.22)'}`,
+          background: hasReachedTeamLimit ? 'rgba(224,85,85,0.08)' : 'rgba(200,164,85,0.08)',
+        }}>
+          <p style={{ margin: 0, fontSize: '0.82rem', color: hasReachedTeamLimit ? '#f0aaaa' : 'var(--warm-white)' }}>
+            DEMO 版每個帳號最多可建立 {DEMO_TEAM_LIMIT} 個團隊。你目前已建立 {ownedTeamCount} 個。
+          </p>
+          <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--muted)' }}>
+            若需更多團隊，請洽管理員協助開通。
           </p>
         </div>
 
@@ -192,21 +224,21 @@ export default function OnboardingPage() {
           {/* Submit */}
           <button
             onClick={handleCreate}
-            disabled={creating}
+            disabled={creating || loadingTeams || hasReachedTeamLimit}
             style={{
               width: '100%',
-              background: creating ? 'rgba(200,164,85,0.3)' : 'var(--gold)',
+              background: creating || loadingTeams || hasReachedTeamLimit ? 'rgba(200,164,85,0.3)' : 'var(--gold)',
               color: 'var(--black)',
               border: 'none',
               padding: '0.9rem',
               fontSize: '0.9rem',
               fontFamily: 'Bebas Neue, sans-serif',
               letterSpacing: '0.15em',
-              cursor: creating ? 'wait' : 'pointer',
+              cursor: creating || loadingTeams || hasReachedTeamLimit ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s',
             }}
           >
-            {creating ? '建立中…' : '建立團隊'}
+            {creating ? '建立中…' : hasReachedTeamLimit ? '已達 DEMO 團隊上限' : loadingTeams ? '檢查中…' : '建立團隊'}
           </button>
         </div>
       </div>

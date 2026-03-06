@@ -1,8 +1,11 @@
 'use client'
+
 import { useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/context/AuthContext'
 import Navbar from '@/components/Navbar'
+import { useAuth } from '@/context/AuthContext'
+import { DEMO_TEAM_LIMIT } from '@/lib/demo-config'
 
 export default function GuidePage() {
   const router = useRouter()
@@ -20,7 +23,7 @@ export default function GuidePage() {
     <div style={{ background: 'var(--black)', minHeight: '100vh', color: 'var(--body-text)' }}>
       <Navbar />
 
-      <main style={{ maxWidth: 680, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
+      <main style={{ maxWidth: 760, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
         <h1
           style={{
             fontFamily: 'Bebas Neue, sans-serif',
@@ -32,117 +35,197 @@ export default function GuidePage() {
         >
           使用說明
         </h1>
-        <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '3rem' }}>
-          以下說明本平台的常用功能與流程，讓你快速上手。
+        <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '1rem', lineHeight: 1.8 }}>
+          HOLYWOOD 的核心流程是：先管理自己的團隊與活動，再在必要時把不同團隊拉進聯合群組協作。
         </p>
+        <div style={{
+          marginBottom: '3rem',
+          padding: '1rem 1.1rem',
+          border: '1px solid var(--dark-border)',
+          background: 'var(--dark-surface)',
+          fontSize: '0.84rem',
+          color: 'var(--muted)',
+          lineHeight: 1.8,
+        }}>
+          同一個帳號可以同時加入很多個團隊。你可以在 A 團隊是 Owner，在 B 團隊是 Admin 或 Member，也可以另外再建立自己的新團隊。
+        </div>
+        <div style={{
+          marginBottom: '3rem',
+          padding: '1rem 1.1rem',
+          border: '1px solid rgba(200,164,85,0.22)',
+          background: 'rgba(200,164,85,0.08)',
+          fontSize: '0.84rem',
+          color: 'var(--muted)',
+          lineHeight: 1.8,
+        }}>
+          DEMO 版每個帳號最多可建立 {DEMO_TEAM_LIMIT} 個團隊。若需要更多團隊，請洽管理員協助開通。
+        </div>
 
         <article style={{ lineHeight: 1.8, fontSize: '0.9rem' }}>
-
-          {/* ── Section 1 ── */}
           <section style={sectionStyle}>
             <div style={sectionNumberStyle}>01</div>
             <div>
-              <h2 style={h2Style}>如何報名崗位</h2>
+              <h2 style={h2Style}>建立與切換團隊</h2>
               <p>
-                前往頁面頂端導覽列的「<strong style={{ color: 'var(--warm-white)' }}>排班表</strong>」，即可看到所有即將舉辦的場次。
+                第一次登入後，可前往
+                {' '}
+                <Link href="/onboarding" style={inlineLinkStyle}>
+                  建立團隊
+                </Link>
+                {' '}
+                建立自己的 team。建立者會自動成為該團隊的
+                <strong style={{ color: 'var(--warm-white)' }}> Owner </strong>
+                。
               </p>
               <p style={{ marginTop: '0.75rem' }}>
-                點選任一場次，展開後會列出該場次的所有崗位。找到你想服事的崗位，
-                點擊「<strong style={{ color: 'var(--warm-white)' }}>報名</strong>」按鈕即可完成登記。
-                若該崗位已有人報名，你仍可查看是誰負責。
+                之後可到
+                {' '}
+                <Link href="/teams" style={inlineLinkStyle}>
+                  我的團隊
+                </Link>
+                {' '}
+                查看你建立或加入的所有團隊，並切換目前使用中的 team。系統所有資料操作都以「目前團隊」為準。
               </p>
-              <p style={{ marginTop: '0.75rem' }}>
-                若想取消報名，再次點擊同一崗位的「取消」即可。報名狀態即時同步，
-                所有團隊成員都能看到最新排班情況。
+              <p style={{ marginTop: '0.75rem', color: 'var(--muted)', fontSize: '0.82rem' }}>
+                DEMO 版每個帳號最多可建立 {DEMO_TEAM_LIMIT} 個自己擁有的團隊，但仍可加入其他人邀請你的團隊。
               </p>
             </div>
           </section>
 
           <div style={dividerStyle} />
 
-          {/* ── Section 2 ── */}
           <section style={sectionStyle}>
             <div style={sectionNumberStyle}>02</div>
             <div>
-              <h2 style={h2Style}>如何登記可參與日期</h2>
+              <h2 style={h2Style}>邀請自己的團隊成員加入</h2>
               <p>
-                點選導覽列的「<strong style={{ color: 'var(--warm-white)' }}>可參與日期</strong>」頁面，
-                你可以提前告知管理員哪幾個場次你可以出席服事。
+                若你是團隊的 Owner 或 Admin，可進入
+                {' '}
+                <Link href="/admin" style={inlineLinkStyle}>
+                  管理後台
+                </Link>
+                {' '}
+                的成員管理頁籤，產生團隊邀請連結。
               </p>
               <p style={{ marginTop: '0.75rem' }}>
-                系統會列出近期所有場次，你只需勾選自己方便的日期並送出即可。
-                管理員在安排排班時，可參考這份可用清單，優先排入有空的成員。
-              </p>
-              <p style={{ marginTop: '0.75rem' }}>
-                建議在每次排班截止日前完成填寫，以利管理員統籌安排。
+                把這個連結傳給需要排班的夥伴，對方點擊後就會加入你的 team。這只會影響他在這個團隊裡的身份，不會改變他在其他團隊的角色。
               </p>
             </div>
           </section>
 
           <div style={dividerStyle} />
 
-          {/* ── Section 3 ── */}
           <section style={sectionStyle}>
             <div style={sectionNumberStyle}>03</div>
             <div>
-              <h2 style={h2Style}>換班申請流程</h2>
+              <h2 style={h2Style}>先建立活動，必要時再展開時段</h2>
               <p>
-                若你已報名某場次的崗位，但臨時有事無法出席，可透過換班功能尋找接替人選。
+                建議先到
+                {' '}
+                <Link href="/admin" style={inlineLinkStyle}>
+                  管理後台
+                </Link>
+                {' '}
+                建立活動。活動是主流程，方便先把日期、標題與說明定義清楚。
               </p>
               <p style={{ marginTop: '0.75rem' }}>
-                步驟如下：
-              </p>
-              <ol style={{ paddingLeft: '1.4rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <li>前往「<strong style={{ color: 'var(--warm-white)' }}>排班表</strong>」找到你報名的場次與崗位</li>
-                <li>點擊「<strong style={{ color: 'var(--warm-white)' }}>申請換班</strong>」，選擇你希望換班的對象</li>
-                <li>系統會通知對方，等待對方確認</li>
-                <li>對方同意後，排班即自動更新；若對方拒絕，你可以重新選擇其他人</li>
-              </ol>
-              <p style={{ marginTop: '0.75rem' }}>
-                換班申請發出後，你可以在「<strong style={{ color: 'var(--warm-white)' }}>我的排班</strong>」頁面追蹤申請狀態。
+                如果這個活動真的需要細分班表、角色或名額，再展開「進階：批次新增時段」。若只是一般活動公告，不必一開始就建立時段。
               </p>
             </div>
           </section>
 
           <div style={dividerStyle} />
 
-          {/* ── Section 4 ── */}
           <section style={sectionStyle}>
             <div style={sectionNumberStyle}>04</div>
             <div>
-              <h2 style={h2Style}>管理員功能</h2>
+              <h2 style={h2Style}>建立聯合群組</h2>
               <p>
-                若你是團隊的 Admin 或 Owner，可進入「<strong style={{ color: 'var(--warm-white)' }}>管理後台</strong>」使用以下功能：
+                當兩個團隊要一起完成同一場活動、專案或現場任務時，請先切到要代表操作的 team，然後前往
+                {' '}
+                <Link href="/workspaces" style={inlineLinkStyle}>
+                  聯合群組
+                </Link>
+                {' '}
+                頁面建立新的合作空間。
               </p>
-              <ul style={{ paddingLeft: '1.4rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <li>
-                  <strong style={{ color: 'var(--warm-white)' }}>新增場次</strong>
-                  ：建立新的服事場次，設定日期、時間與類型（一般 / 特別聚會）
-                </li>
-                <li>
-                  <strong style={{ color: 'var(--warm-white)' }}>編輯公告</strong>
-                  ：為特定場次新增或修改公告，成員在排班表上即可看到
-                </li>
-                <li>
-                  <strong style={{ color: 'var(--warm-white)' }}>成員管理</strong>
-                  ：查看成員列表、調整權限、移除成員，或產生邀請連結邀請新成員加入
-                </li>
-                <li>
-                  <strong style={{ color: 'var(--warm-white)' }}>崗位設定</strong>
-                  ：自訂崗位名稱與順序，彈性對應不同聚會的服事需求
-                </li>
-              </ul>
-              <p style={{ marginTop: '0.75rem', color: 'var(--muted)', fontSize: '0.82rem' }}>
-                管理後台入口位於頂端導覽列，僅限 Admin 與 Owner 角色可見。
+              <p style={{ marginTop: '0.75rem' }}>
+                在建立時可填入聯合群組名稱與合作目的，例如「母親節特別聚會聯合作業」或「巡迴工作坊影像 x 招待協作」。
               </p>
             </div>
           </section>
 
+          <div style={dividerStyle} />
+
+          <section style={sectionStyle}>
+            <div style={sectionNumberStyle}>05</div>
+            <div>
+              <h2 style={h2Style}>邀請合作團隊加入聯合群組</h2>
+              <p>
+                在聯合群組列表裡，可對某個 workspace 產生合作邀請。把這個連結交給另一個團隊的 Owner 或 Admin。
+              </p>
+              <p style={{ marginTop: '0.75rem' }}>
+                對方要先切到自己要代表加入的團隊，再用邀請碼加入。加入後，兩個 team 都會出現在同一個聯合群組中，並共享同一份合作資訊。
+              </p>
+            </div>
+          </section>
+
+          <div style={dividerStyle} />
+
+          <section style={sectionStyle}>
+            <div style={sectionNumberStyle}>06</div>
+            <div>
+              <h2 style={h2Style}>共享說明、查看聯合時程總覽與衝突</h2>
+              <p>
+                聯合群組頁面可維護
+                <strong style={{ color: 'var(--warm-white)' }}> 共享說明 </strong>
+                ，把雙方都要知道的現場 brief、分工、流程與注意事項集中管理。
+              </p>
+              <p style={{ marginTop: '0.75rem' }}>
+                聯合群組也會彙整各團隊的時程，讓你看到同一個人在不同團隊是否剛好被排到重疊時段。這個頁面是
+                <strong style={{ color: 'var(--warm-white)' }}> 協調用總覽 </strong>
+                ，不是跨團隊直接改派班表的地方。
+              </p>
+              <p style={{ marginTop: '0.75rem' }}>
+                真正的排班調整仍回到各自團隊的
+                {' '}
+                <Link href="/schedule" style={inlineLinkStyle}>
+                  排班表
+                </Link>
+                {' '}
+                與
+                {' '}
+                <Link href="/availability" style={inlineLinkStyle}>
+                  可參與日期
+                </Link>
+                {' '}
+                頁面操作。
+              </p>
+            </div>
+          </section>
+
+          <div style={dividerStyle} />
+
+          <section style={sectionStyle}>
+            <div style={sectionNumberStyle}>07</div>
+            <div>
+              <h2 style={h2Style}>角色與管理權限</h2>
+              <p>每個 team 的角色分成三種：</p>
+              <ul style={{ paddingLeft: '1.4rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <li><strong style={{ color: 'var(--warm-white)' }}>Owner</strong>：建立團隊、管理成員、調整權限、建立聯合群組。</li>
+                <li><strong style={{ color: 'var(--warm-white)' }}>Admin</strong>：協助管理排班、邀請成員、加入或維護聯合群組。</li>
+                <li><strong style={{ color: 'var(--warm-white)' }}>Member</strong>：查看排班、登記可參與日期、在已加入的團隊或聯合群組中閱讀共享資訊。</li>
+              </ul>
+              <p style={{ marginTop: '0.75rem', color: 'var(--muted)', fontSize: '0.82rem' }}>
+                角色是 team scope。同一個人在不同 team 裡可以有不同權限。
+              </p>
+            </div>
+          </section>
         </article>
 
         <div style={{ marginTop: '4rem', padding: '1.5rem', background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', borderRadius: '10px' }}>
-          <p style={{ fontSize: '0.82rem', color: 'var(--muted)', textAlign: 'center', margin: 0 }}>
-            有其他問題？請聯絡你的團隊管理員，或在排班表的公告區留言。
+          <p style={{ fontSize: '0.82rem', color: 'var(--muted)', textAlign: 'center', margin: 0, lineHeight: 1.8 }}>
+            如果你要代表不同團隊加入不同合作空間，記得先到「我的團隊」切換目前使用中的 team，再進行邀請或加入操作。
           </p>
         </div>
       </main>
@@ -150,15 +233,20 @@ export default function GuidePage() {
   )
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const sectionStyle: React.CSSProperties = {
+const inlineLinkStyle = {
+  color: 'var(--warm-white)',
+  textDecoration: 'none',
+  borderBottom: '1px solid transparent',
+}
+
+const sectionStyle = {
   display: 'grid',
   gridTemplateColumns: '2.5rem 1fr',
   gap: '1rem',
   alignItems: 'start',
 }
 
-const sectionNumberStyle: React.CSSProperties = {
+const sectionNumberStyle = {
   fontFamily: 'Bebas Neue, sans-serif',
   fontSize: '1.3rem',
   color: 'var(--gold)',
@@ -166,7 +254,7 @@ const sectionNumberStyle: React.CSSProperties = {
   paddingTop: '0.15rem',
 }
 
-const h2Style: React.CSSProperties = {
+const h2Style = {
   fontSize: '1rem',
   fontWeight: 700,
   color: 'var(--warm-white)',
@@ -174,7 +262,7 @@ const h2Style: React.CSSProperties = {
   letterSpacing: '0.02em',
 }
 
-const dividerStyle: React.CSSProperties = {
+const dividerStyle = {
   height: '1px',
   background: 'var(--dark-border)',
   margin: '2rem 0',

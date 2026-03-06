@@ -44,6 +44,43 @@ export interface TeamMember {
   joinedAt: number
 }
 
+// ─── Workspaces（跨團隊聯合作業）──────────────────────────────────────────────
+export interface Workspace {
+  id: string
+  name: string
+  purpose: string
+  sharedBrief?: string
+  createdAt: number
+  updatedAt: number
+  createdBy: string
+  createdByTeamId: string
+  teamIds: string[]
+  teamCount: number
+}
+
+export interface WorkspaceTeam {
+  teamId: string
+  teamName: string
+  joinedAt: number
+  joinedBy: string
+  joinedByName: string
+  joinedByTeamRole: MemberRole
+}
+
+export interface WorkspaceInvite {
+  id: string
+  workspaceId: string
+  workspaceName: string
+  createdAt: number
+  createdBy: string
+  createdByName: string
+  createdByTeamId: string
+  expiresAt: number
+  usedCount: number
+  maxUses: number
+  active: boolean
+}
+
 // ─── Invitation ───────────────────────────────────────────────────────────────
 export interface Invitation {
   id: string              // token（隨機字串）
@@ -131,9 +168,9 @@ export interface Availability {
   id: string
   userId: string
   teamId: string
-  sessionId: string
-  sessionDate: string     // "2026-03-07"
-  sessionTitle: string    // "週六服事"
+  slotId: string
+  slotDate: string     // "2026-03-07"
+  slotTitle: string    // e.g. event title or slot label
   createdAt: number
 }
 

@@ -11,6 +11,7 @@ import {
   where,
   onSnapshot,
   Unsubscribe,
+  writeBatch,
 } from 'firebase/firestore'
 import { db } from './firebase'
 import { Team, TeamMember, Invitation, MemberRole, RoleConfig, UserProfile } from './types'
@@ -36,10 +37,10 @@ export async function createTeam(
     createdAt: Date.now(),
     createdBy: creatorUid,
   }
-  await setDoc(ref, team)
-
+  const batch = writeBatch(db)
+  batch.set(ref, team)
   // 建立者設為 owner
-  await setDoc(doc(db, 'teams', ref.id, 'members', creatorUid), {
+  batch.set(doc(db, 'teams', ref.id, 'members', creatorUid), {
     uid: creatorUid,
     displayName: creatorName,
     photoURL: creatorPhoto,
@@ -47,6 +48,7 @@ export async function createTeam(
     role: 'owner',
     joinedAt: Date.now(),
   } satisfies TeamMember)
+  await batch.commit()
 
   return ref.id
 }
@@ -78,6 +80,29 @@ export async function getMyTeams(uid: string): Promise<Team[]> {
   ))
   const teams = await Promise.all(teamIds.map(id => getTeam(id)))
   return teams.filter(Boolean) as Team[]
+}
+
+export async function getTeamsByCreator(uid: string): Promise<Team[]> {
+  const snap = await getDocs(query(collection(db, 'teams'), where('createdBy', '==', uid)))
+  return snap.docs.map(d => ({ ...(d.data() as Team), id: d.id }))
+}
+
+export async function ensureOwnerMember(
+  teamId: string,
+  user: { uid: string; displayName: string; photoURL: string; email: string },
+): Promise<boolean> {
+  const ref = doc(db, 'teams', teamId, 'members', user.uid)
+  const snap = await getDoc(ref)
+  if (snap.exists()) return false
+  await setDoc(ref, {
+    uid: user.uid,
+    displayName: user.displayName,
+    photoURL: user.photoURL,
+    email: user.email,
+    role: 'owner',
+    joinedAt: Date.now(),
+  } satisfies TeamMember)
+  return true
 }
 
 export async function addTeamMember(

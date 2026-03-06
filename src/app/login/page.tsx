@@ -7,7 +7,7 @@ import { useTeam } from '@/context/TeamContext'
 
 export default function LoginPage() {
   const { user, loading, signIn, authError } = useAuth()
-  const { teams, loadingTeams } = useTeam()
+  const { teams, loadingTeams, teamsError, refreshTeams } = useTeam()
   const router = useRouter()
   const [copied, setCopied] = useState(false)
 
@@ -16,14 +16,14 @@ export default function LoginPage() {
     || (ua.includes('Android') && ua.includes('; wv)'))
 
   useEffect(() => {
-    if (loading || loadingTeams) return
+    if (loading || loadingTeams || teamsError) return
     if (!user) return
     if (teams.length > 0) {
       router.replace('/schedule')
     } else {
       router.replace('/onboarding')
     }
-  }, [user, loading, teams, loadingTeams, router])
+  }, [user, loading, teams, loadingTeams, teamsError, router])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -95,7 +95,48 @@ export default function LoginPage() {
         </div>
 
         {/* Login */}
-        {isInApp ? (
+        {user && teamsError ? (
+          <div style={{
+            border: '1px solid rgba(224,85,85,0.35)',
+            background: 'rgba(224,85,85,0.08)',
+            padding: '1rem 1.15rem',
+            textAlign: 'left',
+          }}>
+            <p style={{
+              fontSize: '0.82rem',
+              color: '#f0a7a7',
+              letterSpacing: '0.05em',
+              marginBottom: '0.45rem',
+              fontWeight: 500,
+            }}>
+              已登入，但團隊資料暫時讀不到
+            </p>
+            <p style={{
+              fontSize: '0.76rem',
+              color: 'var(--body-text)',
+              lineHeight: 1.7,
+              marginBottom: '0.8rem',
+            }}>
+              {teamsError}
+            </p>
+            <button
+              onClick={() => { void refreshTeams() }}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                color: 'var(--warm-white)',
+                border: '1px solid var(--dark-border)',
+                padding: '0.65rem',
+                fontFamily: 'Noto Sans TC, sans-serif',
+                fontSize: '0.76rem',
+                letterSpacing: '0.08em',
+                cursor: 'pointer',
+              }}
+            >
+              重新載入團隊
+            </button>
+          </div>
+        ) : isInApp ? (
           <div style={{
             border: '1px solid rgba(200,164,85,0.4)',
             background: 'rgba(200,164,85,0.06)',
@@ -159,9 +200,9 @@ export default function LoginPage() {
           </button>
         )}
 
-        {authError && (
+        {(authError || (!user && teamsError)) && (
           <p style={{ fontSize: '0.76rem', color: '#e06c6c', marginTop: '0.75rem', lineHeight: 1.6 }}>
-            {authError}
+            {authError || teamsError}
           </p>
         )}
 

@@ -1,56 +1,67 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+/* eslint-disable @next/next/no-img-element */
+import { useCallback, useEffect, useMemo, useState, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
+import Navbar from '@/components/Navbar'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
-import Navbar from '@/components/Navbar'
 import {
-  subscribeToSessions,
-  createSession,
-  deleteSession,
-  updateSession,
-  assignRole,
-  setAnnouncement,
-  getSessionAvailabilities,
+  subscribeToEvents,
+  subscribeTeamSlots,
+  createEvent,
+  createSlots,
 } from '@/lib/firestore'
 import {
   subscribeToTeamMembers,
-  removeTeamMember,
   createInvitation,
   getTeamInvitations,
   deactivateInvitation,
   updateTeam,
 } from '@/lib/firestore-teams'
 import { postJsonWithAuth } from '@/lib/authed-post'
-import { Session, TeamMember, Invitation, RoleConfig } from '@/lib/types'
+import { Event, RoleConfig, Slot, TeamMember, Invitation } from '@/lib/types'
 
 type Tab = 'schedule' | 'members' | 'settings'
+
+type SlotDraft = {
+  eventId: string
+  slotDate: string
+  startTime: string
+  endTime: string
+  roleId: string
+  capacity: number
+  title: string
+}
+
+type ScheduleFeedback = {
+  type: 'success' | 'error'
+  text: string
+}
 
 export default function AdminPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { activeTeam, activeTeamId, activeMember, refreshTeams } = useTeam()
 
-  const isAdmin =
-    activeMember?.role === 'owner' || activeMember?.role === 'admin'
+  const isAdmin = activeMember?.role === 'owner' || activeMember?.role === 'admin'
 
   const [activeTab, setActiveTab] = useState<Tab>('schedule')
 
-  // ─── Sessions ─────────────────────────────────────────────────────────────
-  const [sessions, setSessions] = useState<Session[]>([])
-  const [showNewSessionForm, setShowNewSessionForm] = useState(false)
-  const [newSession, setNewSession] = useState({
+  // ─── Events / Slots ───────────────────────────────────────────────────────
+  const [events, setEvents] = useState<Event[]>([])
+  const [slots, setSlots] = useState<Slot[]>([])
+  const [newEvent, setNewEvent] = useState({
     date: '',
     title: '',
     type: 'regular' as 'regular' | 'special',
-    startTime: '',
-    endTime: '',
+    description: '',
   })
-  const [announcementModal, setAnnouncementModal] = useState<{
-    sessionId: string
-    current: string
-  } | null>(null)
-  const [announcementText, setAnnouncementText] = useState('')
+  const [slotDrafts, setSlotDrafts] = useState<SlotDraft[]>([])
+  const [savingEvent, setSavingEvent] = useState(false)
+  const [savingSlots, setSavingSlots] = useState(false)
+  const [slotEditorOpen, setSlotEditorOpen] = useState(false)
+  const [scheduleFeedback, setScheduleFeedback] = useState<ScheduleFeedback | null>(null)
+  const [preferredSlotSeed, setPreferredSlotSeed] = useState<Pick<SlotDraft, 'eventId' | 'slotDate'> | null>(null)
 
   // ─── Members ──────────────────────────────────────────────────────────────
   const [members, setMembers] = useState<TeamMember[]>([])
@@ -77,6 +88,48 @@ export default function AdminPage() {
   const teamName = currentSettings.teamName
   const roles = currentSettings.roles
 
+  function getEventById(eventId: string) {
+    return events.find((event) => event.id === eventId) ?? null
+  }
+
+  const buildSlotDraft = useCallback((seed?: Partial<SlotDraft>): SlotDraft => {
+    const seedEvent =
+      (seed?.eventId && events.find((event) => event.id === seed.eventId)) ||
+      (preferredSlotSeed?.eventId && events.find((event) => event.id === preferredSlotSeed.eventId)) ||
+      events[0] ||
+      null
+
+    return {
+      eventId: seed?.eventId ?? seedEvent?.id ?? preferredSlotSeed?.eventId ?? '',
+      slotDate: seed?.slotDate ?? seedEvent?.date ?? preferredSlotSeed?.slotDate ?? '',
+      startTime: seed?.startTime ?? '',
+      endTime: seed?.endTime ?? '',
+      roleId: seed?.roleId ?? roles[0]?.id ?? '',
+      capacity: seed?.capacity ?? 1,
+      title: seed?.title ?? '',
+    }
+  }, [events, preferredSlotSeed, roles])
+
+  function validateSlotDraft(draft: SlotDraft, index: number) {
+    const row = index + 1
+    const event = getEventById(draft.eventId)
+
+    if (!draft.eventId) return `第 ${row} 列尚未選擇活動`
+    if (!event) return `第 ${row} 列的活動已不存在，請重新選擇`
+    if (!draft.slotDate) return `第 ${row} 列尚未填寫日期`
+    if (!draft.startTime || !draft.endTime) return `第 ${row} 列尚未填完開始與結束時間`
+    if (!draft.roleId) return `第 ${row} 列尚未選擇角色`
+    if (!roles.some((role) => role.id === draft.roleId)) return `第 ${row} 列的角色已不存在，請重新選擇`
+    if (!Number.isInteger(draft.capacity) || draft.capacity < 1) return `第 ${row} 列名額必須是 1 以上的整數`
+
+    const startsAt = Date.parse(`${draft.slotDate}T${draft.startTime}`)
+    const endsAt = Date.parse(`${draft.slotDate}T${draft.endTime}`)
+    if (Number.isNaN(startsAt) || Number.isNaN(endsAt)) return `第 ${row} 列的時間格式不正確`
+    if (startsAt >= endsAt) return `第 ${row} 列的結束時間必須晚於開始時間`
+
+    return null
+  }
+
   function updateSettingsDraft(
     updater: (base: { teamId: string | null; teamName: string; roles: RoleConfig[] }) => {
       teamId: string | null
@@ -97,14 +150,27 @@ export default function AdminPage() {
     }
   }, [activeMember, isAdmin, router])
 
-  // ─── Subscribe sessions ───────────────────────────────────────────────────
+  // ─── Subscribe events / slots ─────────────────────────────────────────────
   useEffect(() => {
     if (!activeTeamId) return
-    const unsub = subscribeToSessions(activeTeamId, (data) => {
-      setSessions(data.sort((a, b) => a.date.localeCompare(b.date)))
+    const unsubEvents = subscribeToEvents(activeTeamId, (data) => {
+      setEvents(data.sort((a, b) => a.date.localeCompare(b.date)))
     })
-    return () => unsub()
+    const unsubSlots = subscribeTeamSlots(activeTeamId, (data) => {
+      setSlots(data.sort((a, b) => a.slotDate.localeCompare(b.slotDate) || a.startsAt.localeCompare(b.startsAt)))
+    })
+    return () => {
+      unsubEvents?.()
+      unsubSlots?.()
+    }
   }, [activeTeamId])
+
+  // ensure there is at least one draft row
+  useEffect(() => {
+    if (slotDrafts.length === 0) {
+      setSlotDrafts([buildSlotDraft()])
+    }
+  }, [buildSlotDraft, events, roles, slotDrafts.length])
 
   // ─── Subscribe members ────────────────────────────────────────────────────
   useEffect(() => {
@@ -119,36 +185,152 @@ export default function AdminPage() {
     getTeamInvitations(activeTeamId).then(setInvitations)
   }, [activeTeamId, activeTab])
 
-  // ─── Handlers: Sessions ───────────────────────────────────────────────────
-  async function handleCreateSession() {
+  // ─── Handlers: Events / Slots ─────────────────────────────────────────────
+  async function handleCreateEvent() {
     if (!activeTeamId || !user) return
-    if (!newSession.date || !newSession.title) return
-    await createSession(activeTeamId, {
-      date: newSession.date,
-      title: newSession.title,
-      type: newSession.type,
-      startTime: newSession.startTime,
-      endTime: newSession.endTime,
-      assignments: {},
-      createdBy: user.uid,
+    const title = newEvent.title.trim()
+    if (!newEvent.date) {
+      setScheduleFeedback({ type: 'error', text: '請先輸入活動日期。' })
+      return
+    }
+    if (!title) {
+      setScheduleFeedback({ type: 'error', text: '請先輸入活動標題。' })
+      return
+    }
+
+    setSavingEvent(true)
+    setScheduleFeedback(null)
+    try {
+      const eventId = await createEvent(activeTeamId, {
+        ...newEvent,
+        title,
+        description: newEvent.description.trim(),
+        createdBy: user.uid,
+      })
+      const createdEvent: Event = {
+        id: eventId,
+        teamId: activeTeamId,
+        title,
+        date: newEvent.date,
+        type: newEvent.type,
+        description: newEvent.description.trim(),
+        createdAt: Date.now(),
+        createdBy: user.uid,
+      }
+      setEvents((prev) =>
+        [...prev.filter((event) => event.id !== createdEvent.id), createdEvent].sort((a, b) => a.date.localeCompare(b.date))
+      )
+      setPreferredSlotSeed({ eventId, slotDate: newEvent.date })
+      setSlotDrafts((prev) => {
+        const hasDraftContent = prev.some((draft) =>
+          Boolean(draft.startTime || draft.endTime || draft.title.trim())
+        )
+        if (slotEditorOpen && !hasDraftContent) {
+          return [buildSlotDraft({ eventId, slotDate: newEvent.date })]
+        }
+        return prev
+      })
+      setNewEvent({ date: '', title: '', type: 'regular', description: '' })
+      setScheduleFeedback({
+        type: 'success',
+        text: `已建立活動「${title}」。如需更細的班表，可展開進階時段設定。`,
+      })
+    } catch (error) {
+      setScheduleFeedback({
+        type: 'error',
+        text: error instanceof Error ? error.message : '建立活動失敗，請稍後再試。',
+      })
+    } finally {
+      setSavingEvent(false)
+    }
+  }
+
+  function updateSlotDraft(index: number, partial: Partial<SlotDraft>) {
+    setSlotDrafts((prev) => {
+      const next = [...prev]
+      next[index] = { ...next[index], ...partial }
+      return next
     })
-    setNewSession({ date: '', title: '', type: 'regular', startTime: '', endTime: '' })
-    setShowNewSessionForm(false)
   }
 
-  async function handleDeleteSession(sessionId: string) {
-    if (!activeTeamId) return
-    if (!confirm('確定要刪除這個場次嗎？')) return
-    await deleteSession(activeTeamId, sessionId)
+  function addSlotDraft(copyFrom?: SlotDraft) {
+    setSlotDrafts((prev) => {
+      const base = copyFrom || prev[prev.length - 1]
+      if (base) {
+        return [...prev, { ...base, startTime: '', endTime: '' }]
+      }
+      return [...prev, buildSlotDraft()]
+    })
   }
 
-  async function handleSaveAnnouncement() {
-    if (!activeTeamId || !announcementModal) return
-    const authorName =
-      activeMember?.customName || activeMember?.displayName || user?.displayName || '管理員'
-    await setAnnouncement(activeTeamId, announcementModal.sessionId, announcementText, authorName)
-    setAnnouncementModal(null)
-    setAnnouncementText('')
+  function removeSlotDraft(index: number) {
+    setSlotDrafts((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function handleSlotEventChange(index: number, nextEventId: string) {
+    const currentDraft = slotDrafts[index]
+    const currentEvent = getEventById(currentDraft?.eventId || '')
+    const nextEvent = getEventById(nextEventId)
+    const shouldSyncDate = !currentDraft?.slotDate || (!!currentEvent && currentDraft.slotDate === currentEvent.date)
+
+    updateSlotDraft(index, {
+      eventId: nextEventId,
+      slotDate: shouldSyncDate ? nextEvent?.date || '' : currentDraft.slotDate,
+    })
+
+    if (nextEvent) {
+      setPreferredSlotSeed({ eventId: nextEvent.id, slotDate: nextEvent.date })
+    }
+  }
+
+  async function handleCreateSlots() {
+    if (!activeTeamId || !user) return
+    if (events.length === 0) {
+      setScheduleFeedback({ type: 'error', text: '請先建立至少一個活動，再設定時段。' })
+      return
+    }
+
+    const validationError = slotDrafts.map((draft, index) => validateSlotDraft(draft, index)).find(Boolean)
+    if (validationError) {
+      setScheduleFeedback({ type: 'error', text: validationError })
+      return
+    }
+
+    setSavingSlots(true)
+    setScheduleFeedback(null)
+    try {
+      await createSlots(activeTeamId, slotDrafts.map((draft) => ({
+        eventId: draft.eventId,
+        roleId: draft.roleId,
+        slotDate: draft.slotDate,
+        startsAt: `${draft.slotDate}T${draft.startTime}`,
+        endsAt: `${draft.slotDate}T${draft.endTime}`,
+        capacity: Number(draft.capacity),
+        title: draft.title.trim() || roles.find((role) => role.id === draft.roleId)?.label || '',
+        createdBy: user.uid,
+      })))
+      const resetSeed = slotDrafts[0]
+      setPreferredSlotSeed({ eventId: resetSeed.eventId, slotDate: resetSeed.slotDate })
+      setSlotDrafts([
+        buildSlotDraft({
+          eventId: resetSeed.eventId,
+          slotDate: resetSeed.slotDate,
+          roleId: resetSeed.roleId,
+          title: resetSeed.title.trim(),
+        }),
+      ])
+      setScheduleFeedback({
+        type: 'success',
+        text: `已建立 ${slotDrafts.length} 個時段。`,
+      })
+    } catch (error) {
+      setScheduleFeedback({
+        type: 'error',
+        text: error instanceof Error ? error.message : '建立時段失敗，請稍後再試。',
+      })
+    } finally {
+      setSavingSlots(false)
+    }
   }
 
   // ─── Handlers: Members ────────────────────────────────────────────────────
@@ -164,7 +346,10 @@ export default function AdminPage() {
   async function handleRemoveMember(uid: string) {
     if (!activeTeamId) return
     if (!confirm('確定要移除此成員？')) return
-    await removeTeamMember(activeTeamId, uid)
+    await postJsonWithAuth('/api/team-members/remove', {
+      teamId: activeTeamId,
+      targetUid: uid,
+    })
   }
 
   async function handleCreateInvite() {
@@ -222,6 +407,16 @@ export default function AdminPage() {
     setTimeout(() => setSettingsSaved(false), 2000)
   }
 
+  const slotsByEvent = useMemo(() => {
+    const grouped: Record<string, Slot[]> = {}
+    slots.forEach(s => {
+      if (!grouped[s.eventId]) grouped[s.eventId] = []
+      grouped[s.eventId].push(s)
+    })
+    Object.values(grouped).forEach(list => list.sort((a, b) => a.slotDate.localeCompare(b.slotDate) || a.startsAt.localeCompare(b.startsAt)))
+    return grouped
+  }, [slots])
+
   // ─── Render ───────────────────────────────────────────────────────────────
   if (!activeMember) {
     return (
@@ -240,8 +435,8 @@ export default function AdminPage() {
     <div style={{ background: 'var(--black)', minHeight: '100vh', color: 'var(--body-text)' }}>
       <Navbar />
 
-      <main style={{ maxWidth: 900, margin: '0 auto', padding: '2rem 1.5rem 4rem' }}>
-        <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.4rem', color: 'var(--warm-white)', letterSpacing: '0.05em', marginBottom: '2rem' }}>
+      <main style={{ maxWidth: 1000, margin: '0 auto', padding: '2rem 1.5rem 4rem' }}>
+        <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.3rem', color: 'var(--warm-white)', letterSpacing: '0.05em', marginBottom: '2rem' }}>
           管理後台
         </h1>
 
@@ -275,150 +470,231 @@ export default function AdminPage() {
 
         {/* ─── Tab 1: 排班管理 ─────────────────────────────────────────────── */}
         {activeTab === 'schedule' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ color: 'var(--warm-white)', fontSize: '1.1rem', fontWeight: 500 }}>所有場次</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {scheduleFeedback && (
+              <div style={{
+                padding: '0.9rem 1rem',
+                borderRadius: 10,
+                border: `1px solid ${scheduleFeedback.type === 'error' ? 'rgba(224,85,85,0.32)' : 'rgba(118,188,129,0.32)'}`,
+                background: scheduleFeedback.type === 'error' ? 'rgba(224,85,85,0.08)' : 'rgba(118,188,129,0.08)',
+                color: scheduleFeedback.type === 'error' ? '#f0aaaa' : '#97d8a2',
+                fontSize: '0.84rem',
+              }}>
+                {scheduleFeedback.text}
+              </div>
+            )}
+
+            {/* Event form */}
+            <div style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', borderRadius: 12, padding: '1.4rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 style={{ color: 'var(--warm-white)', fontSize: '1.05rem', fontWeight: 600 }}>新增活動</h2>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={labelStyle}>日期</label>
+                  <input type="date" value={newEvent.date} onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>類型</label>
+                  <select value={newEvent.type} onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value as 'regular' | 'special' })} style={inputStyle}>
+                    <option value="regular">一般活動</option>
+                    <option value="special">特別活動</option>
+                  </select>
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={labelStyle}>標題</label>
+                  <input type="text" placeholder="例：募資市集 / 主日服事" value={newEvent.title} onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })} style={inputStyle} />
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={labelStyle}>說明（選填）</label>
+                  <textarea rows={2} value={newEvent.description} onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })} style={{ ...inputStyle, resize: 'vertical' }} />
+                </div>
+              </div>
               <button
-                onClick={() => setShowNewSessionForm(!showNewSessionForm)}
+                onClick={handleCreateEvent}
+                disabled={savingEvent}
                 style={{
-                  padding: '0.5rem 1.2rem',
+                  marginTop: '1rem',
+                  padding: '0.6rem 1.3rem',
                   background: 'var(--gold)',
                   color: 'var(--black)',
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: 8,
                   fontWeight: 700,
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
+                  cursor: savingEvent ? 'wait' : 'pointer',
+                  opacity: savingEvent ? 0.7 : 1,
                 }}
               >
-                {showNewSessionForm ? '取消' : '+ 新增場次'}
+                {savingEvent ? '建立中…' : '建立活動'}
               </button>
             </div>
 
-            {/* New Session Form */}
-            {showNewSessionForm && (
-              <div style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', borderRadius: '10px', padding: '1.5rem', marginBottom: '1.5rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
-                    <label style={labelStyle}>日期</label>
-                    <input
-                      type="date"
-                      value={newSession.date}
-                      onChange={(e) => setNewSession({ ...newSession, date: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>類型</label>
-                    <select
-                      value={newSession.type}
-                      onChange={(e) => setNewSession({ ...newSession, type: e.target.value as 'regular' | 'special' })}
-                      style={inputStyle}
-                    >
-                      <option value="regular">一般服事</option>
-                      <option value="special">特別聚會</option>
-                    </select>
-                  </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <label style={labelStyle}>標題</label>
-                    <input
-                      type="text"
-                      placeholder="例：週六服事、特別聚會"
-                      value={newSession.title}
-                      onChange={(e) => setNewSession({ ...newSession, title: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>開始時間</label>
-                    <input
-                      type="time"
-                      value={newSession.startTime}
-                      onChange={(e) => setNewSession({ ...newSession, startTime: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>結束時間</label>
-                    <input
-                      type="time"
-                      value={newSession.endTime}
-                      onChange={(e) => setNewSession({ ...newSession, endTime: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
+            {/* Slot batch form */}
+            <div style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', borderRadius: 12, padding: '1.4rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <div>
+                  <h2 style={{ color: 'var(--warm-white)', fontSize: '1.05rem', fontWeight: 600, margin: 0 }}>進階：批次新增時段</h2>
+                  <p style={{ color: 'var(--muted)', fontSize: '0.82rem', margin: '0.45rem 0 0' }}>
+                    先建立活動；只有在需要分班、分角色、分名額時，再展開時段設定。
+                  </p>
                 </div>
                 <button
-                  onClick={handleCreateSession}
-                  style={{ marginTop: '1rem', padding: '0.6rem 1.5rem', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: 'pointer' }}
+                  onClick={() => setSlotEditorOpen((prev) => !prev)}
+                  disabled={events.length === 0}
+                  style={{
+                    ...ghostBtnStyle,
+                    padding: '0.45rem 0.95rem',
+                    opacity: events.length === 0 ? 0.5 : 1,
+                    cursor: events.length === 0 ? 'not-allowed' : 'pointer',
+                  }}
                 >
-                  建立場次
+                  {events.length === 0 ? '請先建立活動' : slotEditorOpen ? '收合時段設定' : '展開時段設定'}
                 </button>
               </div>
-            )}
 
-            {/* Sessions List */}
-            {sessions.length === 0 ? (
-              <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '3rem 0' }}>尚無場次</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {sessions.map((s) => (
-                  <div
-                    key={s.id}
-                    style={{
-                      background: 'var(--dark-surface)',
-                      border: '1px solid var(--dark-border)',
-                      borderRadius: '10px',
-                      padding: '1rem 1.25rem',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: '1rem',
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.2rem' }}>
-                        <span style={{ color: 'var(--warm-white)', fontWeight: 500 }}>{s.title}</span>
-                        <span style={{
-                          fontSize: '0.7rem',
-                          padding: '1px 8px',
-                          borderRadius: '999px',
-                          background: s.type === 'special' ? 'rgba(200,164,85,0.2)' : 'rgba(138,132,120,0.2)',
-                          color: s.type === 'special' ? 'var(--gold)' : 'var(--muted)',
-                        }}>
-                          {s.type === 'special' ? '特別' : '一般'}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>
-                        {s.date} {s.startTime && `${s.startTime}–${s.endTime}`}
-                      </div>
-                      {s.announcement && (
-                        <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: 'var(--gold-light)', padding: '0.3rem 0.6rem', background: 'rgba(200,164,85,0.08)', borderRadius: '4px' }}>
-                          公告：{s.announcement}
-                        </div>
+              {!slotEditorOpen && events.length > 0 && (
+                <p style={{ color: 'var(--muted)', fontSize: '0.82rem', margin: '1rem 0 0' }}>
+                  若這個活動只需要先公告，不必現在就建立時段。
+                </p>
+              )}
+
+              {slotEditorOpen && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', marginBottom: '1rem' }}>
+                    <span style={{ color: 'var(--warm-white)', fontSize: '0.88rem', fontWeight: 500 }}>時段設定表</span>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={() => addSlotDraft()} style={{ ...ghostBtnStyle, padding: '0.35rem 0.9rem' }}>+ 一列</button>
+                      {slotDrafts[slotDrafts.length - 1] && (
+                        <button onClick={() => addSlotDraft(slotDrafts[slotDrafts.length - 1])} style={{ ...ghostBtnStyle, padding: '0.35rem 0.9rem' }}>
+                          複製上一列
+                        </button>
                       )}
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                      <button
-                        onClick={() => {
-                          setAnnouncementModal({ sessionId: s.id, current: s.announcement || '' })
-                          setAnnouncementText(s.announcement || '')
-                        }}
-                        style={ghostBtnStyle}
-                      >
-                        編輯公告
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSession(s.id)}
-                        style={{ ...ghostBtnStyle, color: '#e05555', borderColor: 'rgba(224,85,85,0.3)' }}
-                      >
-                        刪除
-                      </button>
-                    </div>
                   </div>
-                ))}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr) 80px', gap: '0.6rem', alignItems: 'center' }}>
+                    <span style={columnHeader}>活動</span>
+                    <span style={columnHeader}>日期</span>
+                    <span style={columnHeader}>開始</span>
+                    <span style={columnHeader}>結束</span>
+                    <span style={columnHeader}>角色</span>
+                    <span style={columnHeader}>名額</span>
+                    <span style={columnHeader}>操作</span>
+
+                    {slotDrafts.map((draft, idx) => (
+                      <Fragment key={`draft-${idx}`}>
+                        <select
+                          value={draft.eventId}
+                          onChange={(e) => handleSlotEventChange(idx, e.target.value)}
+                          style={inputStyle}
+                        >
+                          <option value="">選擇活動</option>
+                          {events.map(ev => (
+                            <option key={ev.id} value={ev.id}>{ev.date} · {ev.title}</option>
+                          ))}
+                        </select>
+                        <input key={`date-${idx}`} type="date" value={draft.slotDate} onChange={(e) => updateSlotDraft(idx, { slotDate: e.target.value })} style={inputStyle} />
+                        <input key={`start-${idx}`} type="time" value={draft.startTime} onChange={(e) => updateSlotDraft(idx, { startTime: e.target.value })} style={inputStyle} />
+                        <input key={`end-${idx}`} type="time" value={draft.endTime} onChange={(e) => updateSlotDraft(idx, { endTime: e.target.value })} style={inputStyle} />
+                        <select
+                          value={draft.roleId}
+                          onChange={(e) => updateSlotDraft(idx, { roleId: e.target.value })}
+                          style={inputStyle}
+                        >
+                          <option value="">選擇角色</option>
+                          {roles.map(r => (
+                            <option key={r.id} value={r.id}>{r.label}</option>
+                          ))}
+                        </select>
+                        <input key={`cap-${idx}`} type="number" min={1} value={draft.capacity} onChange={(e) => updateSlotDraft(idx, { capacity: Number(e.target.value) })} style={inputStyle} />
+                        <div key={`ops-${idx}`} style={{ display: 'flex', justifyContent: 'center' }}>
+                          {slotDrafts.length > 1 && (
+                            <button onClick={() => removeSlotDraft(idx)} style={{ ...ghostBtnStyle, padding: '0.25rem 0.6rem' }}>刪除</button>
+                          )}
+                        </div>
+                      </Fragment>
+                    ))}
+                  </div>
+
+                  <p style={{ color: 'var(--muted)', fontSize: '0.78rem', margin: '0.75rem 0 0' }}>
+                    選擇活動後會先帶入活動日期；如果是多日活動，你仍可再手動調整該列日期。
+                  </p>
+
+                  <div style={{ marginTop: '0.8rem' }}>
+                    <label style={labelStyle}>（選填）時段標題：會套用在本表格所有列</label>
+                    <input
+                      type="text"
+                      placeholder="例：志工報到 / 招待"
+                      value={slotDrafts[0]?.title || ''}
+                      onChange={(e) => {
+                        const next = e.target.value
+                        setSlotDrafts((prev) => prev.map(d => ({ ...d, title: next })))
+                      }}
+                      style={{ ...inputStyle, maxWidth: 360 }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleCreateSlots}
+                    disabled={savingSlots}
+                    style={{ marginTop: '1rem', padding: '0.6rem 1.3rem', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 8, fontWeight: 700, cursor: savingSlots ? 'wait' : 'pointer' }}
+                  >
+                    {savingSlots ? '建立中…' : '建立時段'}
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Existing events */}
+            <div style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', borderRadius: 12, padding: '1.4rem' }}>
+              <h2 style={{ color: 'var(--warm-white)', fontSize: '1.05rem', fontWeight: 600, marginBottom: '1rem' }}>所有活動 / 時段</h2>
+              {events.length === 0 && <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>尚無活動</p>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                {events.map(ev => {
+                  const evSlots = slotsByEvent[ev.id] || []
+                  return (
+                    <div key={ev.id} style={{ border: '1px solid var(--dark-border)', borderRadius: 10, padding: '1rem 1.1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <span style={{ color: 'var(--gold)', fontFamily: 'Bebas Neue, sans-serif', letterSpacing: '0.08em' }}>{ev.date}</span>
+                          <span style={{ color: 'var(--warm-white)', fontWeight: 600 }}>{ev.title}</span>
+                          <span style={{ fontSize: '0.72rem', padding: '1px 8px', borderRadius: '999px', background: ev.type === 'special' ? 'rgba(200,164,85,0.2)' : 'rgba(138,132,120,0.15)', color: ev.type === 'special' ? 'var(--gold)' : 'var(--muted)' }}>
+                            {ev.type === 'special' ? '特別' : '一般'}
+                          </span>
+                        </div>
+                        <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>{evSlots.length} 時段</span>
+                      </div>
+                      {ev.description && (
+                        <div style={{ color: 'var(--muted)', fontSize: '0.82rem', marginBottom: '0.5rem' }}>{ev.description}</div>
+                      )}
+                      {evSlots.length === 0 && <p style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: 0 }}>尚無時段</p>}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {evSlots.map(slot => {
+                          const assignees = Object.values(slot.assignments || {})
+                          return (
+                            <div key={slot.id} style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '0.6rem', padding: '0.55rem 0.7rem', borderRadius: 8, border: '1px solid var(--dark-border)', background: 'rgba(255,255,255,0.02)' }}>
+                              <div style={{ color: 'var(--warm-white)', fontSize: '0.88rem', fontWeight: 600 }}>
+                                {slot.slotDate} {slot.startsAt.slice(11, 16)}–{slot.endsAt.slice(11, 16)}
+                              </div>
+                              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>{roles.find(r => r.id === slot.roleId)?.label || slot.roleId}</span>
+                                <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>名額 {assignees.length}/{slot.capacity}</span>
+                                <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                  {assignees.map(a => (
+                                    <span key={a.userId} style={{ color: 'var(--warm-white)', fontSize: '0.8rem', padding: '0.15rem 0.45rem', borderRadius: 6, border: '1px solid var(--dark-border)' }}>{a.displayName}</span>
+                                  ))}
+                                  {assignees.length === 0 && <span style={{ color: 'var(--muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>空缺</span>}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -662,36 +938,6 @@ export default function AdminPage() {
           </div>
         )}
       </main>
-
-      {/* Announcement Modal */}
-      {announcementModal && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem',
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) setAnnouncementModal(null) }}
-        >
-          <div style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', borderRadius: '12px', padding: '2rem', width: '100%', maxWidth: 480 }}>
-            <h3 style={{ color: 'var(--warm-white)', marginBottom: '1rem', fontWeight: 500 }}>編輯公告</h3>
-            <textarea
-              value={announcementText}
-              onChange={(e) => setAnnouncementText(e.target.value)}
-              rows={4}
-              placeholder="輸入公告內容…"
-              style={{ ...inputStyle, resize: 'vertical' }}
-            />
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-              <button onClick={() => setAnnouncementModal(null)} style={ghostBtnStyle}>取消</button>
-              <button
-                onClick={handleSaveAnnouncement}
-                style={{ padding: '0.5rem 1.2rem', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: 'pointer' }}
-              >
-                儲存公告
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -725,4 +971,11 @@ const ghostBtnStyle: React.CSSProperties = {
   color: 'var(--muted)',
   fontSize: '0.82rem',
   cursor: 'pointer',
+}
+
+const columnHeader: React.CSSProperties = {
+  color: 'var(--muted)',
+  fontSize: '0.78rem',
+  letterSpacing: '0.05em',
+  paddingBottom: '0.2rem',
 }

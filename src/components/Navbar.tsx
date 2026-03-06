@@ -19,6 +19,15 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [teamMenuOpen, setTeamMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'dark'
+    const stored = window.localStorage.getItem('theme')
+    if (stored === 'light' || stored === 'dark') return stored
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+      ? 'light'
+      : 'dark'
+  })
   const teamMenuRef = useRef<HTMLDivElement>(null)
 
   const isAdmin = activeMember?.role === 'owner' || activeMember?.role === 'admin'
@@ -39,6 +48,17 @@ export default function Navbar() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.documentElement.setAttribute('data-theme', theme)
+    try {
+      window.localStorage.setItem('theme', theme)
+    } catch {
+      // ignore storage errors (private mode)
+    }
+  }, [theme])
+
 
   const handleSignOut = async () => {
     await signOut()
@@ -61,9 +81,19 @@ export default function Navbar() {
 
   if (!user) return null
 
+  const avatarUrl = user.photoURL || ''
+  const avatarText = (effectiveName || user.displayName || user.email || '?')
+    .trim()
+    .slice(0, 1)
+    .toUpperCase()
+  const showAvatarImage = Boolean(avatarUrl && avatarError !== avatarUrl)
+  const nextTheme = theme === 'light' ? 'dark' : 'light'
+  const hasTeams = teams.length > 0
+  const canSwitchTeams = teams.length > 1
+
   return (
     <nav style={{
-      background: 'rgba(10,10,10,0.92)',
+      background: 'var(--nav-bg)',
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
       borderBottom: '1px solid var(--dark-border)',
@@ -97,6 +127,8 @@ export default function Navbar() {
               <NavLink href="/schedule" active={pathname === '/schedule'}>排班表</NavLink>
               <NavLink href="/my-schedule" active={pathname === '/my-schedule'}>我的排班</NavLink>
               <NavLink href="/availability" active={pathname === '/availability'}>可參與日期</NavLink>
+              <NavLink href="/teams" active={pathname === '/teams'}>我的團隊</NavLink>
+              <NavLink href="/workspaces" active={pathname === '/workspaces'}>聯合群組</NavLink>
               <NavLink href="/guide" active={pathname === '/guide'}>說明</NavLink>
               {isAdmin && <NavLink href="/admin" active={pathname === '/admin'}>管理</NavLink>}
             </>
@@ -107,28 +139,30 @@ export default function Navbar() {
         {!isMobile ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {/* 團隊切換器 */}
-            {teams.length > 1 && (
+            {hasTeams && (
               <div ref={teamMenuRef} style={{ position: 'relative' }}>
                 <button
-                  onClick={() => setTeamMenuOpen(v => !v)}
+                  onClick={() => canSwitchTeams && setTeamMenuOpen(v => !v)}
+                  disabled={!canSwitchTeams}
                   style={{
                     fontSize: '0.72rem',
                     letterSpacing: '0.08em',
                     color: 'var(--gold)',
-                    background: 'rgba(200,164,85,0.08)',
+                    background: canSwitchTeams ? 'rgba(200,164,85,0.08)' : 'rgba(200,164,85,0.04)',
                     border: '1px solid rgba(200,164,85,0.25)',
                     padding: '0.25rem 0.6rem',
-                    cursor: 'pointer',
+                    cursor: canSwitchTeams ? 'pointer' : 'default',
                     fontFamily: 'Noto Sans TC, sans-serif',
                     maxWidth: 120,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    opacity: canSwitchTeams ? 1 : 0.8,
                   }}
                 >
-                  {activeTeam?.name ?? '選擇團隊'} ▾
+                  {activeTeam?.name ?? '我的團隊'} {canSwitchTeams ? '▾' : ''}
                 </button>
-                {teamMenuOpen && (
+                {canSwitchTeams && teamMenuOpen && (
                   <div style={{
                     position: 'absolute',
                     right: 0,
@@ -163,15 +197,35 @@ export default function Navbar() {
               </div>
             )}
 
-            {user.photoURL && (
+            {showAvatarImage ? (
               <Image
-                src={user.photoURL}
-                alt={effectiveName}
+                src={avatarUrl}
+                alt={effectiveName || 'User Avatar'}
                 width={26}
                 height={26}
                 style={{ borderRadius: '50%', border: '1px solid var(--dark-border)' }}
                 referrerPolicy="no-referrer"
+                onError={() => setAvatarError(avatarUrl)}
               />
+            ) : (
+              <div
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: '50%',
+                  border: '1px solid var(--dark-border)',
+                  background: 'var(--dark-surface)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.7rem',
+                  color: 'var(--muted)',
+                  textTransform: 'uppercase',
+                }}
+                aria-label="User Avatar"
+              >
+                {avatarText}
+              </div>
             )}
 
             {editingName ? (
@@ -232,19 +286,58 @@ export default function Navbar() {
             >
               登出
             </button>
+            <button
+              onClick={() => setTheme(nextTheme)}
+              style={{
+                fontSize: '0.7rem',
+                letterSpacing: '0.1em',
+                color: 'var(--muted)',
+                background: 'none',
+                border: '1px solid var(--dark-border)',
+                cursor: 'pointer',
+                textTransform: 'uppercase',
+                padding: '0.3rem 0.6rem',
+                transition: 'color 0.3s, border-color 0.3s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--gold)'; e.currentTarget.style.borderColor = 'rgba(200,164,85,0.5)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.borderColor = 'var(--dark-border)' }}
+              aria-label="Toggle theme"
+            >
+              {theme === 'light' ? '深色' : '淺色'}
+            </button>
           </div>
         ) : (
           /* 手機右側 */
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {user.photoURL && (
+            {showAvatarImage ? (
               <Image
-                src={user.photoURL}
-                alt={effectiveName}
+                src={avatarUrl}
+                alt={effectiveName || 'User Avatar'}
                 width={26}
                 height={26}
                 style={{ borderRadius: '50%', border: '1px solid var(--dark-border)' }}
                 referrerPolicy="no-referrer"
+                onError={() => setAvatarError(avatarUrl)}
               />
+            ) : (
+              <div
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: '50%',
+                  border: '1px solid var(--dark-border)',
+                  background: 'var(--dark-surface)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.7rem',
+                  color: 'var(--muted)',
+                  textTransform: 'uppercase',
+                }}
+                aria-label="User Avatar"
+              >
+                {avatarText}
+              </div>
             )}
             <button
               onClick={() => setMenuOpen(v => !v)}
@@ -271,38 +364,48 @@ export default function Navbar() {
 
       {/* 手機下拉選單 */}
       {isMobile && menuOpen && (
-        <div style={{ borderTop: '1px solid var(--dark-border)', background: 'rgba(10,10,10,0.98)', padding: '0.5rem 1.5rem 1.25rem' }}>
+          <div style={{ borderTop: '1px solid var(--dark-border)', background: 'var(--nav-bg-strong)', padding: '0.5rem 1.5rem 1.25rem' }}>
           <MobileNavLink href="/schedule" active={pathname === '/schedule'}>排班表</MobileNavLink>
           <MobileNavLink href="/my-schedule" active={pathname === '/my-schedule'}>我的排班</MobileNavLink>
           <MobileNavLink href="/availability" active={pathname === '/availability'}>可參與日期</MobileNavLink>
+          <MobileNavLink href="/teams" active={pathname === '/teams'}>我的團隊</MobileNavLink>
+          <MobileNavLink href="/workspaces" active={pathname === '/workspaces'}>聯合群組</MobileNavLink>
           <MobileNavLink href="/guide" active={pathname === '/guide'}>說明</MobileNavLink>
           {isAdmin && <MobileNavLink href="/admin" active={pathname === '/admin'}>管理</MobileNavLink>}
 
-          {teams.length > 1 && (
+          {hasTeams && (
             <>
               <div style={{ height: 1, background: 'var(--dark-border)', margin: '0.5rem 0' }} />
-              <p style={{ fontSize: '0.72rem', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0.5rem 0' }}>切換團隊</p>
-              {teams.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => { switchTeam(t.id); setMenuOpen(false) }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '0.6rem 0',
-                    fontSize: '0.9rem',
-                    color: t.id === activeTeam?.id ? 'var(--gold)' : 'var(--muted)',
-                    background: 'none',
-                    border: 'none',
-                    borderBottom: '1px solid rgba(42,42,42,0.5)',
-                    cursor: 'pointer',
-                    fontFamily: 'Noto Sans TC, sans-serif',
-                  }}
-                >
-                  {t.name}
-                </button>
-              ))}
+              <p style={{ fontSize: '0.72rem', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0.5rem 0' }}>
+                {canSwitchTeams ? '切換團隊' : '目前團隊'}
+              </p>
+              {canSwitchTeams ? (
+                teams.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => { switchTeam(t.id); setMenuOpen(false) }}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '0.6rem 0',
+                      fontSize: '0.9rem',
+                      color: t.id === activeTeam?.id ? 'var(--gold)' : 'var(--muted)',
+                      background: 'none',
+                      border: 'none',
+                      borderBottom: '1px solid rgba(42,42,42,0.5)',
+                      cursor: 'pointer',
+                      fontFamily: 'Noto Sans TC, sans-serif',
+                    }}
+                  >
+                    {t.name}
+                  </button>
+                ))
+              ) : (
+                <p style={{ fontSize: '0.9rem', color: 'var(--warm-white)', margin: '0.2rem 0 0.6rem' }}>
+                  {activeTeam?.name ?? '我的團隊'}
+                </p>
+              )}
             </>
           )}
 
@@ -358,6 +461,24 @@ export default function Navbar() {
               flexShrink: 0,
             }}>
               登出
+            </button>
+            <button
+              onClick={() => setTheme(nextTheme)}
+              style={{
+                fontSize: '0.7rem',
+                letterSpacing: '0.1em',
+                color: 'var(--muted)',
+                background: 'none',
+                border: '1px solid var(--dark-border)',
+                cursor: 'pointer',
+                textTransform: 'uppercase',
+                padding: '0.35rem 0.8rem',
+                fontFamily: 'Noto Sans TC, sans-serif',
+                flexShrink: 0,
+              }}
+              aria-label="Toggle theme"
+            >
+              {theme === 'light' ? '深色' : '淺色'}
             </button>
           </div>
         </div>

@@ -8,10 +8,9 @@ export default function LandingPage() {
   return (
     <div style={{ background: 'var(--black)', minHeight: '100vh', fontFamily: 'Noto Sans TC, sans-serif' }}>
 
-      {/* ── Nav ── */}
       <nav style={{
         position: 'sticky', top: 0, zIndex: 50,
-        background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(20px)',
+        background: 'var(--nav-bg)', backdropFilter: 'blur(20px)',
         borderBottom: '1px solid var(--dark-border)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         height: 56, padding: '0 1.5rem',
@@ -30,16 +29,14 @@ export default function LandingPage() {
       </nav>
 
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 1.5rem' }}>
-
-        {/* ── Hero ── */}
         <section style={{
           minHeight: 'calc(100vh - 56px)',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
           textAlign: 'center', padding: '4rem 0',
         }}>
-          <p style={{ fontSize: '0.72rem', letterSpacing: '0.3em', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: '1.5rem' }}>
-            SaaS 影視服事排班平台
+          <p style={{ fontSize: '0.72rem', letterSpacing: '0.3em', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: '1rem' }}>
+            多團隊排班 + 跨團隊聯合作業
           </p>
           <h1 style={{
             fontFamily: 'Bebas Neue, sans-serif',
@@ -48,12 +45,12 @@ export default function LandingPage() {
           }}>
             HOLY<span style={{ color: 'var(--gold)' }}>WOOD</span>
           </h1>
-          <p style={{ fontSize: 'clamp(1rem, 2.5vw, 1.3rem)', color: 'var(--muted)', letterSpacing: '0.15em', fontFamily: 'Bebas Neue, sans-serif', marginBottom: '1rem' }}>
-            讓影視服事團隊告別 LINE 群排班
+          <p style={{ fontSize: 'clamp(1rem, 2.5vw, 1.3rem)', color: 'var(--muted)', letterSpacing: '0.15em', fontFamily: 'Bebas Neue, sans-serif', marginBottom: '0.8rem' }}>
+            一個帳號管理多個團隊，必要時再把不同團隊拉進同一個聯合群組
           </p>
-          <p style={{ fontSize: '0.9rem', color: 'var(--body-text)', maxWidth: 480, lineHeight: 1.9, marginBottom: '2.5rem' }}>
-            專為教會及服事機構設計的線上排班系統。<br />
-            建立團隊、邀請成員、設定崗位，讓每位服事者都能即時查看排班、自主報名、申請換班。
+          <p style={{ fontSize: '0.9rem', color: 'var(--body-text)', maxWidth: 620, lineHeight: 1.9, marginBottom: '2.5rem' }}>
+            建立自己的團隊、邀請成員加入、分派 Owner / Admin / Member 權限。<br />
+            先用活動管理日常工作；只有需要細分班表時，再展開進階時段設定。當不同團隊要一起完成同一場活動或專案時，再開一個聯合群組，集中共享合作目的、現場 brief 與跨團隊協作資訊。
           </p>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link href={DEMO_URL} style={{
@@ -75,91 +72,89 @@ export default function LandingPage() {
             </a>
           </div>
           <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '1.5rem', letterSpacing: '0.08em' }}>
-            免費開始 · 不需信用卡 · 30 秒建立團隊
+            免費開始 · 不需信用卡 · 30 秒建立第一個團隊 · DEMO 版每帳號最多建立 3 個團隊
           </p>
         </section>
 
-        {/* ── Stats ── */}
         <section style={{
           display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
           gap: '1px', background: 'var(--dark-border)',
           border: '1px solid var(--dark-border)', marginBottom: '6rem',
         }}>
           {[
-            { num: '30秒', label: '建立團隊' },
-            { num: '即時', label: '排班同步' },
-            { num: '一鍵', label: '邀請成員' },
-          ].map(s => (
-            <div key={s.label} style={{ background: 'var(--dark-surface)', padding: '2rem', textAlign: 'center' }}>
-              <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.5rem', letterSpacing: '0.1em', color: 'var(--gold)' }}>{s.num}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--muted)', letterSpacing: '0.1em', marginTop: '0.3rem' }}>{s.label}</div>
+            { num: '30秒', label: '建立第一個團隊' },
+            { num: '多團隊', label: '同帳號自由切換' },
+            { num: '跨團隊', label: '聯合總覽看衝突' },
+          ].map((stat) => (
+            <div key={stat.label} style={{ background: 'var(--dark-surface)', padding: '2rem', textAlign: 'center' }}>
+              <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.5rem', letterSpacing: '0.1em', color: 'var(--gold)' }}>{stat.num}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--muted)', letterSpacing: '0.1em', marginTop: '0.3rem' }}>{stat.label}</div>
             </div>
           ))}
         </section>
 
-        {/* ── Features ── */}
         <section id="features" style={{ marginBottom: '7rem' }}>
-          <SectionHeader tag="功能特色" title="排班再也不是難題" desc="從建立場次到崗位分配，HOLYWOOD 完整覆蓋影視服事的所有排班需求。" />
+          <SectionHeader tag="功能特色" title="從團隊活動管理，延伸到跨團隊協作" desc="先把每個 team 的權限、活動與成員管理做好，再在必要時把多個團隊拉進同一個聯合群組。" />
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
             gap: '1px', background: 'var(--dark-border)', border: '1px solid var(--dark-border)',
           }}>
-            {FEATURES.map(f => (
-              <div key={f.title} style={{ background: 'var(--dark-surface)', padding: '2rem', transition: 'background 0.2s' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(200,164,85,0.04)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--dark-surface)' }}
+            {FEATURES.map((feature) => (
+              <div key={feature.title} style={{ background: 'var(--dark-surface)', padding: '2rem', transition: 'background 0.2s' }}
+                onMouseEnter={(event) => { (event.currentTarget as HTMLDivElement).style.background = 'rgba(200,164,85,0.04)' }}
+                onMouseLeave={(event) => { (event.currentTarget as HTMLDivElement).style.background = 'var(--dark-surface)' }}
               >
                 <div style={{ marginBottom: '0.8rem' }}>
-                  <LineIcon type={f.icon} />
+                  <LineIcon type={feature.icon} />
                 </div>
-                <h3 style={{ fontSize: '0.95rem', color: 'var(--warm-white)', marginBottom: '0.5rem', fontWeight: 500 }}>{f.title}</h3>
-                <p style={{ fontSize: '0.82rem', color: 'var(--muted)', lineHeight: 1.8 }}>{f.desc}</p>
+                <h3 style={{ fontSize: '0.95rem', color: 'var(--warm-white)', marginBottom: '0.5rem', fontWeight: 500 }}>{feature.title}</h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--muted)', lineHeight: 1.8 }}>{feature.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ── Screenshot: 排班表 ── */}
         <section style={{ marginBottom: '7rem' }}>
-          <SectionHeader tag="操作截圖" title="排班表一目瞭然" desc="所有即將到來的場次集中顯示，崗位空缺清楚標示，一鍵即可自主報名。" />
+          <SectionHeader tag="操作截圖" title="先看活動，再看需要的時段" desc="活動是主流程；只有需要細分角色、名額與時段時，才展開進階排班設定。" />
           <MockSchedule />
         </section>
 
-        {/* ── Screenshot: 管理後台 ── */}
         <section style={{ marginBottom: '7rem' }}>
-          <SectionHeader tag="管理員介面" title="完整掌握團隊排班" desc="新增場次、管理成員、設定崗位，並透過邀請連結快速擴展團隊。" />
+          <SectionHeader tag="管理員介面" title="團隊權限與成員管理" desc="Owner 可建立團隊並邀請自己的成員加入，也可指派 Admin 協助管理與排班。" />
           <MockAdmin />
         </section>
 
-        {/* ── Screenshot: 可用日期 ── */}
         <section style={{ marginBottom: '7rem' }}>
-          <SectionHeader tag="成員自主登記" title="可參與日期一鍵勾選" desc="成員提前登記可參與的場次，管理員在排班時一眼看出誰可以服事。" />
+          <SectionHeader tag="聯合作業" title="需要跨團隊時，再開聯合群組" desc="A 團隊與 B 團隊不必合併資料，也能在同一個合作空間裡共享分工、聯合時程總覽與共同 brief。" />
+          <MockWorkspace />
+        </section>
+
+        <section style={{ marginBottom: '7rem' }}>
+          <SectionHeader tag="成員自主登記" title="可參與日期一鍵勾選" desc="成員可先登記可參與的活動或時段，管理者在 team 或聯合作業前置階段都能更快排出人力。" />
           <MockAvailability />
         </section>
 
-        {/* ── How It Works ── */}
         <section id="how" style={{ marginBottom: '7rem' }}>
-          <SectionHeader tag="使用流程" title="四步驟開始排班" />
+          <SectionHeader tag="使用流程" title="五步驟開始協作" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
-            {STEPS.map((s, i) => (
-              <div key={s.title} style={{ padding: '2rem 1.5rem', border: '1px solid var(--dark-border)', position: 'relative' }}>
+            {STEPS.map((step, index) => (
+              <div key={step.title} style={{ padding: '2rem 1.5rem', border: '1px solid var(--dark-border)', position: 'relative' }}>
                 <div style={{
                   fontFamily: 'Bebas Neue, sans-serif', fontSize: '3rem',
                   color: 'rgba(200,164,85,0.15)', position: 'absolute', top: '1rem', right: '1.25rem',
                 }}>
-                  {String(i + 1).padStart(2, '0')}
+                  {String(index + 1).padStart(2, '0')}
                 </div>
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <CircleNumber index={i + 1} />
+                  <CircleNumber index={index + 1} />
                 </div>
-                <h3 style={{ fontSize: '0.9rem', color: 'var(--warm-white)', marginBottom: '0.4rem', fontWeight: 500 }}>{s.title}</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--muted)', lineHeight: 1.8 }}>{s.desc}</p>
+                <h3 style={{ fontSize: '0.9rem', color: 'var(--warm-white)', marginBottom: '0.4rem', fontWeight: 500 }}>{step.title}</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--muted)', lineHeight: 1.8 }}>{step.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ── CTA ── */}
         <section style={{
           textAlign: 'center', padding: '5rem 2rem',
           border: '1px solid var(--dark-border)', marginBottom: '4rem',
@@ -167,10 +162,10 @@ export default function LandingPage() {
         }}>
           <p style={{ fontSize: '0.72rem', letterSpacing: '0.3em', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: '1rem' }}>開始使用</p>
           <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 'clamp(2rem, 5vw, 3.5rem)', letterSpacing: '0.15em', color: 'var(--warm-white)', marginBottom: '1rem' }}>
-            讓你的服事團隊更有效率
+            先建立你的團隊，再把合作團隊接進來
           </h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--muted)', marginBottom: '2.5rem', lineHeight: 1.8 }}>
-            現在免費建立你的第一個團隊，體驗智慧排班的便利。
+            從自己的 team 開始，先建立活動與成員名單；等到有大型活動、跨據點任務或多單位專案時，再用聯合群組把資訊串起來。
           </p>
           <Link href={DEMO_URL} style={{
             display: 'inline-block',
@@ -182,24 +177,20 @@ export default function LandingPage() {
             進入 DEMO 系統
           </Link>
           <p style={{ fontSize: '0.7rem', color: 'var(--muted)', marginTop: '1rem', letterSpacing: '0.05em' }}>
-            用 Google 帳號登入 · 完全免費
+            用 Google 帳號登入 · 完全免費 · DEMO 版每帳號最多建立 3 個團隊
           </p>
         </section>
-
       </div>
 
-      {/* ── Footer ── */}
       <footer style={{ borderTop: '1px solid var(--dark-border)', padding: '2rem 1.5rem', textAlign: 'center' }}>
         <p style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', letterSpacing: '0.2em', color: 'var(--muted)', marginBottom: '0.5rem' }}>
-          HOLY<span style={{ color: 'var(--gold)' }}>WOOD</span> · 影視排班平台
+          HOLY<span style={{ color: 'var(--gold)' }}>WOOD</span> · 多團隊排班與聯合作業平台
         </p>
-        <p style={{ fontSize: '0.72rem', color: 'var(--muted)', letterSpacing: '0.05em' }}>v1.0 · 為影視服事團隊打造</p>
+        <p style={{ fontSize: '0.72rem', color: 'var(--muted)', letterSpacing: '0.05em' }}>v1.1 · 為影視、志工與跨團隊現場協作打造</p>
       </footer>
     </div>
   )
 }
-
-// ── 子元件 ──────────────────────────────────────────────────────────────────
 
 function SectionHeader({ tag, title, desc }: { tag: string; title: string; desc?: string }) {
   return (
@@ -247,12 +238,12 @@ function CircleNumber({ index }: { index: number }) {
 
 function MockNavbar({ active }: { active: string }) {
   return (
-    <div style={{ background: 'rgba(10,10,10,0.95)', borderBottom: '1px solid var(--dark-border)', height: 44, display: 'flex', alignItems: 'center', padding: '0 1.25rem', gap: '1.5rem' }}>
+    <div style={{ background: 'var(--nav-bg-strong)', borderBottom: '1px solid var(--dark-border)', height: 44, display: 'flex', alignItems: 'center', padding: '0 1.25rem', gap: '1.5rem' }}>
       <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', letterSpacing: '0.15em', color: 'var(--warm-white)' }}>
         HOLY<span style={{ color: 'var(--gold)' }}>WOOD</span>
       </span>
-      {['排班表', '我的排班', '可參與日期', '管理'].map(l => (
-        <span key={l} style={{ fontSize: '0.65rem', color: l === active ? 'var(--gold)' : 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{l}</span>
+      {['排班表', '我的排班', '可參與日期', '聯合群組', '管理'].map((label) => (
+        <span key={label} style={{ fontSize: '0.65rem', color: label === active ? 'var(--gold)' : 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</span>
       ))}
       <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--gold)', background: 'rgba(200,164,85,0.1)', border: '1px solid rgba(200,164,85,0.2)', padding: '0.15rem 0.5rem' }}>HOLYWOOD 影視</span>
     </div>
@@ -268,7 +259,6 @@ function MockSchedule() {
       <MockNavbar active="排班表" />
       <div style={{ padding: '1.25rem 1.5rem' }}>
         <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', color: 'var(--warm-white)', letterSpacing: '0.12em', marginBottom: '1rem' }}>排班表</div>
-        {/* Session Card */}
         <div style={{ border: '1px solid var(--dark-border)', background: 'var(--dark)', marginBottom: '0.75rem' }}>
           <div style={{ borderBottom: '1px solid var(--dark-border)', padding: '0.6rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -277,11 +267,11 @@ function MockSchedule() {
             </div>
             <span style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>14:00–17:00</span>
           </div>
-          {roles.map((role, ri) => (
+          {roles.map((role, index) => (
             <div key={role} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '0.4rem 1rem',
-              borderBottom: ri < roles.length - 1 ? '1px solid rgba(42,42,42,0.5)' : 'none',
+              borderBottom: index < roles.length - 1 ? '1px solid rgba(42,42,42,0.5)' : 'none',
             }}>
               <span style={{ fontSize: '0.7rem', color: 'var(--muted)', width: 76 }}>{role}</span>
               {assigned[role] ? (
@@ -305,10 +295,9 @@ function MockSchedule() {
             </div>
           ))}
         </div>
-        {/* Tips */}
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-          {['◈ 點「報名」自主搶位', '⇌ 可對隊友申請換班', '● 即時同步'].map(t => (
-            <span key={t} style={{ fontSize: '0.68rem', color: 'var(--muted)' }}><span style={{ color: 'var(--gold)' }}>{t[0]}</span>{t.slice(1)}</span>
+          {['◈ 點「報名」自主搶位', '⇌ 可對隊友申請換班', '● 即時同步'].map((tip) => (
+            <span key={tip} style={{ fontSize: '0.68rem', color: 'var(--muted)' }}><span style={{ color: 'var(--gold)' }}>{tip[0]}</span>{tip.slice(1)}</span>
           ))}
         </div>
       </div>
@@ -320,13 +309,12 @@ function MockAdmin() {
   return (
     <div style={{ border: '1px solid var(--dark-border)', background: 'var(--dark-surface)', overflow: 'hidden' }}>
       <MockNavbar active="管理" />
-      {/* Tabs */}
       <div style={{ borderBottom: '1px solid var(--dark-border)', display: 'flex', padding: '0 1.5rem' }}>
-        {['排班管理', '成員管理', '團隊設定'].map((tab, i) => (
+        {['排班管理', '成員管理', '團隊設定'].map((tab, index) => (
           <div key={tab} style={{
             padding: '0.65rem 1.1rem', fontSize: '0.75rem', letterSpacing: '0.08em', cursor: 'pointer',
-            color: i === 1 ? 'var(--gold)' : 'var(--muted)',
-            borderBottom: i === 1 ? '2px solid var(--gold)' : '2px solid transparent',
+            color: index === 1 ? 'var(--gold)' : 'var(--muted)',
+            borderBottom: index === 1 ? '2px solid var(--gold)' : '2px solid transparent',
           }}>
             {tab}
           </div>
@@ -338,35 +326,96 @@ function MockAdmin() {
           { name: '王大明', role: 'owner', email: 'david@example.com' },
           { name: '林小花', role: 'admin', email: 'lily@example.com' },
           { name: '陳志遠', role: 'member', email: 'peter@example.com' },
-        ].map(m => (
-          <div key={m.email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: '1px solid var(--dark-border)' }}>
+        ].map((member) => (
+          <div key={member.email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: '1px solid var(--dark-border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--dark-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'var(--muted)' }}>
-                {m.name[0]}
+                {member.name[0]}
               </div>
               <div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--warm-white)' }}>{m.name}</div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--muted)' }}>{m.email}</div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--warm-white)' }}>{member.name}</div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--muted)' }}>{member.email}</div>
               </div>
             </div>
             <span style={{
               fontSize: '0.62rem', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0.18rem 0.45rem',
-              background: m.role !== 'member' ? 'rgba(200,164,85,0.12)' : 'rgba(42,42,42,0.5)',
-              color: m.role !== 'member' ? 'var(--gold)' : 'var(--muted)',
-              border: m.role !== 'member' ? '1px solid rgba(200,164,85,0.25)' : '1px solid var(--dark-border)',
+              background: member.role !== 'member' ? 'rgba(200,164,85,0.12)' : 'rgba(42,42,42,0.5)',
+              color: member.role !== 'member' ? 'var(--gold)' : 'var(--muted)',
+              border: member.role !== 'member' ? '1px solid rgba(200,164,85,0.25)' : '1px solid var(--dark-border)',
             }}>
-              {m.role}
+              {member.role}
             </span>
           </div>
         ))}
-        {/* Invite link */}
         <div style={{ marginTop: '1rem', padding: '0.85rem', background: 'var(--dark)', border: '1px solid var(--dark-border)' }}>
-          <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '0.45rem' }}>邀請連結（7 天有效）</div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '0.45rem' }}>團隊邀請連結（7 天有效）</div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <div style={{ flex: 1, fontSize: '0.68rem', color: 'var(--muted)', fontFamily: 'monospace', background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', padding: '0.35rem 0.6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               https://holywood.app/join/abc123?team=xxx
             </div>
             <button style={{ fontSize: '0.68rem', background: 'rgba(200,164,85,0.1)', border: '1px solid rgba(200,164,85,0.3)', color: 'var(--gold)', padding: '0.35rem 0.65rem', cursor: 'pointer' }}>複製</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MockWorkspace() {
+  return (
+    <div style={{ border: '1px solid var(--dark-border)', background: 'var(--dark-surface)', overflow: 'hidden' }}>
+      <MockNavbar active="聯合群組" />
+      <div style={{ padding: '1.25rem 1.5rem', display: 'grid', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', color: 'var(--warm-white)', letterSpacing: '0.12em' }}>母親節特別聚會聯合作業</div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.35rem', marginBottom: 0, lineHeight: 1.7 }}>
+              A 團隊負責影像與直播，B 團隊負責招待、報到與現場動線。雙方共用一份合作 brief。
+            </p>
+          </div>
+          <span style={{ fontSize: '0.72rem', color: 'var(--gold)', background: 'rgba(200,164,85,0.08)', border: '1px solid rgba(200,164,85,0.22)', padding: '0.35rem 0.65rem' }}>
+            已連結 2 個團隊
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+          {[
+            { team: 'HOLYWOOD 影視', by: 'Owner 王大明' },
+            { team: 'CITY CARE 招待組', by: 'Admin 李佩珊' },
+          ].map((item) => (
+            <div key={item.team} style={{ border: '1px solid var(--dark-border)', background: 'var(--dark)', padding: '0.7rem 0.8rem' }}>
+              <div style={{ fontSize: '0.82rem', color: 'var(--warm-white)' }}>{item.team}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginTop: '0.25rem' }}>{item.by} 加入</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ border: '1px solid var(--dark-border)', background: 'var(--dark)', padding: '0.85rem 0.95rem' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '0.4rem' }}>共享說明</div>
+          <p style={{ fontSize: '0.78rem', color: 'var(--body-text)', lineHeight: 1.8, margin: 0 }}>
+            16:00 開始進場，影像組 15:00 完成機位架設；招待組 15:30 到位。直播測試與現場動線表統一以這份 brief 為準。
+          </p>
+        </div>
+
+        <div style={{ border: '1px solid rgba(200,164,85,0.22)', background: 'rgba(200,164,85,0.06)', padding: '0.85rem 0.95rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>聯合時程總覽</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--warm-white)' }}>同一人員在兩個團隊的時段重疊時，系統會標記衝突提醒雙方協調。</div>
+            </div>
+            <span style={{ fontSize: '0.7rem', color: 'var(--gold)', border: '1px solid rgba(200,164,85,0.28)', padding: '0.25rem 0.55rem' }}>
+              衝突 1 筆
+            </span>
+          </div>
+        </div>
+
+        <div style={{ padding: '0.85rem', background: 'rgba(200,164,85,0.06)', border: '1px solid rgba(200,164,85,0.22)' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '0.45rem' }}>合作邀請連結</div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div style={{ flex: 1, fontSize: '0.68rem', color: 'var(--gold-light)', fontFamily: 'monospace', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--dark-border)', padding: '0.35rem 0.6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              https://holywood.app/workspaces?invite=ws-9c18ab
+            </div>
+            <button style={{ fontSize: '0.68rem', background: 'rgba(200,164,85,0.12)', border: '1px solid rgba(200,164,85,0.3)', color: 'var(--gold)', padding: '0.35rem 0.65rem', cursor: 'pointer' }}>複製</button>
           </div>
         </div>
       </div>
@@ -388,27 +437,27 @@ function MockAvailability() {
         <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', color: 'var(--warm-white)', letterSpacing: '0.12em', marginBottom: '0.5rem' }}>可參與日期</div>
         <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '1rem', lineHeight: 1.6 }}>請勾選你可以參與的場次，管理員會依此安排位置。勾選後即時儲存。</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          {sessions.map(s => (
-            <div key={s.date} style={{
+          {sessions.map((session) => (
+            <div key={session.date} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '0.8rem 1rem',
-              background: s.checked ? 'rgba(200,164,85,0.06)' : 'var(--dark)',
-              border: `1px solid ${s.checked ? 'rgba(200,164,85,0.4)' : 'var(--dark-border)'}`,
+              background: session.checked ? 'rgba(200,164,85,0.06)' : 'var(--dark)',
+              border: `1px solid ${session.checked ? 'rgba(200,164,85,0.4)' : 'var(--dark-border)'}`,
               cursor: 'pointer',
             }}>
               <div>
-                <div style={{ fontSize: '0.82rem', color: s.checked ? 'var(--gold)' : 'var(--warm-white)', marginBottom: '0.1rem' }}>
-                  {s.date}　{s.title}
+                <div style={{ fontSize: '0.82rem', color: session.checked ? 'var(--gold)' : 'var(--warm-white)', marginBottom: '0.1rem' }}>
+                  {session.date}　{session.title}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>{s.time}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>{session.time}</div>
               </div>
               <div style={{
                 width: 20, height: 20,
-                border: `1.5px solid ${s.checked ? 'var(--gold)' : 'var(--dark-border)'}`,
-                background: s.checked ? 'var(--gold)' : 'transparent',
+                border: `1.5px solid ${session.checked ? 'var(--gold)' : 'var(--dark-border)'}`,
+                background: session.checked ? 'var(--gold)' : 'transparent',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                {s.checked && (
+                {session.checked && (
                   <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
                     <path d="M2 6l3 3 5-5" stroke="var(--black)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -423,20 +472,19 @@ function MockAvailability() {
   )
 }
 
-// ── 資料 ──────────────────────────────────────────────────────────────────────
-
 const FEATURES = [
-  { icon: 'grid', title: '多租戶團隊隔離', desc: '每個教會、場館或社企據點擁有獨立資料空間，成員只能看到自己的團隊。' },
-  { icon: 'sliders', title: '崗位彈性設定', desc: '音控、燈光、影像導播、招待、志工、市集攤位…角色由你自訂，完全貼合現場編制。' },
-  { icon: 'zap', title: '即時排班同步', desc: '排班、調度、公告立即同步所有人，不再因截圖或舊版表單造成錯位。' },
-  { icon: 'swap', title: '換班申請系統', desc: '成員直接對同仁發起換班請求，雙方同意即自動更新，減少管理者協調成本。' },
-  { icon: 'calendar', title: '可用時段登記', desc: '先收集大家可服務的時段，再排班；支援不定期活動、多場次與多時段。' },
-  { icon: 'link', title: '邀請連結加入', desc: '產生邀請連結分享出去，新人用 Google 登入即可加入，零帳號申請流程。' },
+  { icon: 'grid', title: '多團隊身份並存', desc: '同一個人可以在 A 團隊是 Owner，在 B 團隊是 Admin 或 Member，也能再建立自己的新團隊。' },
+  { icon: 'link', title: '聯合群組共享資訊', desc: '不同團隊要一起合作時，再建立聯合群組，把合作目的、共同 brief、聯合時程總覽與 partner team 集中在同一頁。' },
+  { icon: 'calendar', title: '進階時段排班', desc: '先建立活動；只有需要細分角色、名額與時段時，才展開 slot 設定，避免一開始把流程做得太重。' },
+  { icon: 'sliders', title: '團隊角色彈性設定', desc: 'Owner、Admin、Member 權限分清楚，崗位與工作角色也能依照據點、現場或專案自由調整。' },
+  { icon: 'zap', title: '排班與協作即時同步', desc: '活動、時段、共享說明與成員資訊即時更新，不再靠截圖、試算表與聊天室補洞。' },
+  { icon: 'swap', title: '邀請連結快速擴編', desc: '不論是邀請自己團隊成員，還是拉另一個團隊加入合作，都能用連結快速完成；DEMO 版每帳號最多建立 3 個團隊。' },
 ]
 
 const STEPS = [
-  { icon: 'step', title: '用 Google 登入', desc: '只需 Google 帳號，30 秒完成登入，不用另外建立帳號密碼。' },
-  { icon: 'step', title: '建立團隊', desc: '輸入團隊或據點名稱，設定需要的崗位清單，立即建立排班空間。' },
-  { icon: 'step', title: '邀請成員', desc: '產生邀請連結，傳給 LINE / Slack / Email，成員點擊即可加入。' },
-  { icon: 'step', title: '開始排班', desc: '建立活動、設定多個時段與名額，成員可自主報名、換班，全程線上處理。' },
+  { title: 'Google 登入', desc: '用同一個帳號登入系統，未來可同時加入多個團隊，也能自己建立新的 team。' },
+  { title: '建立或加入團隊', desc: '建立自己的團隊就自動成為 Owner；若是收到邀請，也能加入別人的團隊成為 Admin 或 Member。DEMO 版每帳號最多建立 3 個團隊。' },
+  { title: '先建立活動', desc: '從活動開始管理日常工作；只有在需要細分角色、名額與時間時，再展開進階時段設定。' },
+  { title: '建立聯合群組', desc: '當兩個團隊要一起完成同一場活動或專案時，建立聯合群組並分享合作邀請給 partner team。' },
+  { title: '共享 brief 與查看衝突', desc: '雙方加入後就在同一個合作空間裡維護共享說明，並查看聯合時程總覽與跨團隊人員衝突提示。' },
 ]

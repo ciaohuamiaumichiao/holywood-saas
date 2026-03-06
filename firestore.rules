@@ -52,17 +52,25 @@ service cloud.firestore {
 
     // ─── Teams ─────────────────────────────────────────────────────────────────
     match /teams/{teamId} {
-      allow read: if isTeamMember(teamId);
-      allow create: if isSignedIn();
+      allow read: if isTeamMember(teamId) || (isSignedIn() && resource.data.createdBy == uid());
+      allow create: if false;
       allow update: if isTeamAdmin(teamId);
-      allow delete: if isTeamOwner(teamId);
+      allow delete: if false;
 
       // Members
       match /members/{memberId} {
-        allow read: if isTeamMember(teamId);
-        // 只允許 team 建立者在建團隊當下建立 owner 成員
-        allow create: if isInitialOwnerCreate(teamId, memberId);
-        allow update, delete: if isTeamAdmin(teamId);
+        // collectionGroup(/members) 讀取自己的 member 文件要可被 query 驗證
+        allow read: if isTeamAdmin(teamId) || (isSignedIn() && resource.data.uid == uid());
+        // 只允許 team 建立者在建團隊當下建立 owner 成員；若初次寫入競態失敗，創建者可重送一次
+        allow create: if isInitialOwnerCreate(teamId, memberId)
+          || (
+            isSignedIn()
+            && uid() == memberId
+            && request.resource.data.uid == uid()
+            && request.resource.data.role == 'owner'
+            && get(/databases/$(database)/documents/teams/$(teamId)).data.createdBy == uid()
+          );
+        allow update, delete: if false;
       }
 
       // Invitations
@@ -89,6 +97,18 @@ service cloud.firestore {
         }
       }
 
+      // Events (slot 化)
+      match /events/{eventId} {
+        allow read: if isTeamMember(teamId);
+        allow create, update, delete: if isTeamAdmin(teamId);
+      }
+
+      // Slots
+      match /slots/{slotId} {
+        allow read: if isTeamMember(teamId);
+        allow create, update, delete: if isTeamAdmin(teamId);
+      }
+
       // Swap Requests
       match /swaps/{swapId} {
         allow read: if isTeamMember(teamId);
@@ -110,6 +130,23 @@ service cloud.firestore {
         allow delete: if isTeamMember(teamId) && uid() == resource.data.userId;
         allow update: if false;
       }
+    }
+
+    // ─── Workspaces（跨團隊聯合作業，僅允許 API route 經 Admin SDK 存取） ─────────
+    match /workspaces/{workspaceId} {
+      allow read, write: if false;
+
+      match /linkedTeams/{teamId} {
+        allow read, write: if false;
+      }
+
+      match /auditLogs/{logId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /workspaceInvites/{inviteId} {
+      allow read, write: if false;
     }
 
     // ─── invitations_index（停用，避免任意污染） ────────────────────────────────
