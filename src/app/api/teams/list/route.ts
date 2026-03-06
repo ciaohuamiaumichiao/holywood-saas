@@ -22,6 +22,12 @@ export async function POST(req: NextRequest) {
       adminDb.collection('users').doc(actorUid).get(),
     ])
     const user = (userSnap.data() as UserDoc | undefined) ?? {}
+    const syncedMemberFields = {
+      displayName: user.displayName ?? '',
+      customName: user.customName ?? '',
+      email: user.email ?? '',
+      photoURL: user.photoURL ?? '',
+    }
     const teamDocs = teamsSnap.docs
     const memberRefs = teamDocs.map((teamDoc) => teamDoc.ref.collection('members').doc(actorUid))
     const memberSnaps = memberRefs.length > 0 ? await adminDb.getAll(...memberRefs) : []
@@ -32,6 +38,7 @@ export async function POST(req: NextRequest) {
 
     teamDocs.forEach((teamDoc, index) => {
       const team = teamDoc.data() as Team
+      const memberRef = memberRefs[index]
       const memberSnap = memberSnaps[index]
       const isCreator = team.createdBy === actorUid
       const isMember = memberSnap?.exists ?? false
@@ -40,16 +47,31 @@ export async function POST(req: NextRequest) {
       teams.push(team)
 
       if (isCreator && !isMember) {
-        repairBatch.set(teamDoc.ref.collection('members').doc(actorUid), {
+        repairBatch.set(memberRef, {
           uid: actorUid,
-          displayName: user.displayName ?? '',
-          customName: user.customName ?? '',
-          email: user.email ?? '',
-          photoURL: user.photoURL ?? '',
+          ...syncedMemberFields,
           role: 'owner',
           joinedAt: Date.now(),
         } satisfies TeamMember)
         needsRepairCommit = true
+        return
+      }
+
+      if (isMember) {
+        const member = (memberSnap.data() as Partial<TeamMember> | undefined) ?? {}
+        const needsProfileSync =
+          (member.displayName ?? '') !== syncedMemberFields.displayName ||
+          (member.customName ?? '') !== syncedMemberFields.customName ||
+          (member.email ?? '') !== syncedMemberFields.email ||
+          (member.photoURL ?? '') !== syncedMemberFields.photoURL
+
+        if (needsProfileSync) {
+          repairBatch.set(memberRef, {
+            uid: actorUid,
+            ...syncedMemberFields,
+          }, { merge: true })
+          needsRepairCommit = true
+        }
       }
     })
 

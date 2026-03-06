@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { getRedirectResult, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut, User } from 'firebase/auth'
 import { auth, googleProvider } from '@/lib/firebase'
 import { upsertUser, getUser } from '@/lib/firestore-teams'
+import { resolveGoogleAvatarUrl } from '@/lib/google-avatar'
 import { UserProfile } from '@/lib/types'
 
 interface AuthContextType {
@@ -11,6 +12,7 @@ interface AuthContextType {
   profile: UserProfile | null
   loading: boolean
   effectiveName: string
+  effectivePhotoURL: string
   authError: string | null
   signIn: () => Promise<void>
   signOut: () => Promise<void>
@@ -22,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   effectiveName: '',
+  effectivePhotoURL: '',
   authError: null,
   signIn: async () => {},
   signOut: async () => {},
@@ -111,11 +114,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         if (firebaseUser) {
           setAuthError(null)
+          const googlePhotoURL = resolveGoogleAvatarUrl(firebaseUser)
           await upsertUser({
             uid: firebaseUser.uid,
             displayName: firebaseUser.displayName ?? '',
             email: firebaseUser.email ?? '',
-            photoURL: firebaseUser.photoURL ?? '',
+            photoURL: googlePhotoURL,
           })
           const p = await getUser(firebaseUser.uid)
           setProfile(p)
@@ -125,11 +129,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('[auth] failed to sync user profile', error)
         if (firebaseUser) {
+          const googlePhotoURL = resolveGoogleAvatarUrl(firebaseUser)
           setProfile({
             uid: firebaseUser.uid,
             displayName: firebaseUser.displayName ?? '',
             email: firebaseUser.email ?? '',
-            photoURL: firebaseUser.photoURL ?? '',
+            photoURL: googlePhotoURL,
             createdAt: Date.now(),
           })
         } else {
@@ -180,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const effectiveName = profile?.customName || profile?.displayName || user?.displayName || ''
+  const effectivePhotoURL = resolveGoogleAvatarUrl(user, profile?.photoURL ?? '')
 
   return (
     <AuthContext.Provider value={{
@@ -187,6 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       loading,
       effectiveName,
+      effectivePhotoURL,
       authError,
       signIn: handleSignIn,
       signOut: handleSignOut,

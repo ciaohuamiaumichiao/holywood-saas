@@ -1,15 +1,15 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
 import { updateUserProfile } from '@/lib/firestore-teams'
 
 export default function Navbar() {
-  const { user, profile, effectiveName, signOut, refreshProfile } = useAuth()
+  const { user, profile, effectiveName, effectivePhotoURL, signOut, refreshProfile } = useAuth()
   const { teams, activeTeam, activeMember, switchTeam } = useTeam()
   const pathname = usePathname()
   const router = useRouter()
@@ -59,7 +59,6 @@ export default function Navbar() {
     }
   }, [theme])
 
-
   const handleSignOut = async () => {
     await signOut()
     router.replace('/')
@@ -81,7 +80,7 @@ export default function Navbar() {
 
   if (!user) return null
 
-  const avatarUrl = user.photoURL || ''
+  const avatarUrl = effectivePhotoURL || ''
   const avatarText = (effectiveName || user.displayName || user.email || '?')
     .trim()
     .slice(0, 1)
@@ -198,12 +197,12 @@ export default function Navbar() {
             )}
 
             {showAvatarImage ? (
-              <Image
+              <img
                 src={avatarUrl}
                 alt={effectiveName || 'User Avatar'}
                 width={26}
                 height={26}
-                style={{ borderRadius: '50%', border: '1px solid var(--dark-border)' }}
+                style={{ width: 26, height: 26, borderRadius: '50%', border: '1px solid var(--dark-border)', objectFit: 'cover' }}
                 referrerPolicy="no-referrer"
                 onError={() => setAvatarError(avatarUrl)}
               />
@@ -310,12 +309,12 @@ export default function Navbar() {
           /* 手機右側 */
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             {showAvatarImage ? (
-              <Image
+              <img
                 src={avatarUrl}
                 alt={effectiveName || 'User Avatar'}
                 width={26}
                 height={26}
-                style={{ borderRadius: '50%', border: '1px solid var(--dark-border)' }}
+                style={{ width: 26, height: 26, borderRadius: '50%', border: '1px solid var(--dark-border)', objectFit: 'cover' }}
                 referrerPolicy="no-referrer"
                 onError={() => setAvatarError(avatarUrl)}
               />

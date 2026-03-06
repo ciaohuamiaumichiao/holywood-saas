@@ -30,7 +30,7 @@ function formatTimeRange(slot: Slot) {
 
 export default function SchedulePage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, effectivePhotoURL } = useAuth()
   const { activeTeam, activeTeamId } = useTeam()
 
   const [events, setEvents] = useState<Event[]>([])
@@ -92,7 +92,7 @@ export default function SchedulePage() {
       const result = await assignSlot(activeTeamId, slot.id, {
         uid: user.uid,
         displayName: user.displayName || '',
-        photoURL: user.photoURL || '',
+        photoURL: effectivePhotoURL || '',
       })
       if (result === 'full') setFeedback({ type: 'error', text: '此時段名額已滿' })
       else if (result === 'conflict') setFeedback({ type: 'error', text: '與你已報名的時段時間重疊' })
