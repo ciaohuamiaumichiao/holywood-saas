@@ -36,7 +36,7 @@ export default function LandingPage() {
           textAlign: 'center', padding: '4rem 0',
         }}>
           <p style={{ fontSize: '0.72rem', letterSpacing: '0.3em', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: '1rem' }}>
-            多團隊排班 + 跨團隊聯合作業
+            跨組織、多角色、短期任務型人力協作平台
           </p>
           <h1 style={{
             fontFamily: 'Bebas Neue, sans-serif',
@@ -46,11 +46,11 @@ export default function LandingPage() {
             HOLY<span style={{ color: 'var(--gold)' }}>WOOD</span>
           </h1>
           <p style={{ fontSize: 'clamp(1rem, 2.5vw, 1.3rem)', color: 'var(--muted)', letterSpacing: '0.15em', fontFamily: 'Bebas Neue, sans-serif', marginBottom: '0.8rem' }}>
-            一個帳號管理多個團隊，累積排班歷程，必要時再把不同團隊拉進同一個聯合群組
+            適用影視製作、活動執行、場館支援、教會/非營利志工與臨時專案團隊
           </p>
           <p style={{ fontSize: '0.9rem', color: 'var(--body-text)', maxWidth: 620, lineHeight: 1.9, marginBottom: '2.5rem' }}>
             建立自己的團隊、邀請成員加入、分派 Owner / Admin / Member 權限。<br />
-            先用活動管理日常工作，讓大家在排班表上的參與、取消與支援軌跡逐步累積成年度回顧。你可以在年底看見每個人的排班次數、主要崗位、換班紀錄與成就徽章；當不同團隊要一起完成同一場活動或專案時，再開一個聯合群組，集中共享合作目的、現場 brief 與跨團隊協作資訊。
+            先用活動管理日常工作，讓大家在排班表上的參與、取消與支援軌跡逐步累積成年度回顧。像偏鄉小學教學計畫這種時間分散、地點分散、但志工固定的團隊，也能把每次課程當活動管理，清楚知道這次會有哪些主教老師與助教老師出席，並在說明欄留下集合點、教材與提醒 note；當不同團隊要一起完成同一場活動或專案時，再開一個聯合群組，集中共享合作目的、現場 brief 與跨團隊協作資訊。
           </p>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link href={DEMO_URL} style={{
@@ -70,6 +70,37 @@ export default function LandingPage() {
             }}>
               了解功能
             </a>
+          </div>
+          <div style={{
+            display: 'flex',
+            gap: '0.55rem',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            maxWidth: 760,
+            marginTop: '1.2rem',
+          }}>
+            {[
+              '影視製作',
+              '活動執行',
+              '場館支援',
+              '教會 / 非營利志工',
+              '臨時專案團隊',
+              '偏鄉教學計畫',
+            ].map((label) => (
+              <span
+                key={label}
+                style={{
+                  fontSize: '0.68rem',
+                  color: 'var(--muted)',
+                  padding: '0.28rem 0.6rem',
+                  border: '1px solid var(--dark-border)',
+                  background: 'rgba(255,255,255,0.02)',
+                  letterSpacing: '0.06em',
+                }}
+              >
+                {label}
+              </span>
+            ))}
           </div>
           <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '1.5rem', letterSpacing: '0.08em' }}>
             免費開始 · 不需信用卡 · 30 秒建立第一個團隊 · DEMO 版每帳號最多建立 3 個團隊
@@ -91,6 +122,61 @@ export default function LandingPage() {
               <div style={{ fontSize: '0.8rem', color: 'var(--muted)', letterSpacing: '0.1em', marginTop: '0.3rem' }}>{stat.label}</div>
             </div>
           ))}
+        </section>
+
+        <section style={{ marginBottom: '7rem' }}>
+          <SectionHeader
+            tag="使用場景"
+            title="從影視製作到偏鄉教學，都能套用同一套流程"
+            desc="HOLYWOOD 的核心不是單一產業排班，而是跨組織、多角色、短期任務型的人力協作。影視製作、活動執行、場館支援、教會/非營利志工、臨時專案團隊，甚至偏鄉小學教學計畫，都能用相同邏輯管理人力。"
+          />
+          <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '1rem' }}>
+            {[
+              '影視製作',
+              '活動執行',
+              '場館支援',
+              '教會 / 非營利志工',
+              '臨時專案團隊',
+            ].map((label) => (
+              <span key={label} style={{ fontSize: '0.68rem', color: 'var(--gold-light)', border: '1px solid rgba(200,164,85,0.22)', padding: '0.28rem 0.6rem', background: 'rgba(200,164,85,0.06)' }}>
+                {label}
+              </span>
+            ))}
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '1rem',
+            alignItems: 'stretch',
+          }}>
+            <div style={{
+              border: '1px solid var(--dark-border)',
+              background: 'var(--dark-surface)',
+              padding: '1.4rem 1.3rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.9rem',
+            }}>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--gold)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                  場景示例
+                </div>
+                <div style={{ fontSize: '1rem', color: 'var(--warm-white)' }}>山光偏鄉閱讀教學團</div>
+              </div>
+              {[
+                '把「桃源國小閱讀課」或「瑞峰國小自然課」各自建立成活動。',
+                '把角色改成主教老師、助教老師、行政窗口或交通支援。',
+                '用活動說明留下集合地點、教材提醒、窗口電話與注意事項。',
+                '出班前快速看見這次有哪些老師確定出席，避免臨時漏接。',
+              ].map((item) => (
+                <div key={item} style={{ fontSize: '0.8rem', color: 'var(--muted)', lineHeight: 1.8, display: 'flex', gap: '0.6rem' }}>
+                  <span style={{ color: 'var(--gold)' }}>•</span>
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+            <MockTeachingPlan />
+          </div>
         </section>
 
         <section id="features" style={{ marginBottom: '7rem' }}>
@@ -191,7 +277,7 @@ export default function LandingPage() {
         <p style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', letterSpacing: '0.2em', color: 'var(--muted)', marginBottom: '0.5rem' }}>
           HOLY<span style={{ color: 'var(--gold)' }}>WOOD</span> · 多團隊排班與聯合作業平台
         </p>
-        <p style={{ fontSize: '0.72rem', color: 'var(--muted)', letterSpacing: '0.05em' }}>v1.1 · 為影視、志工與跨團隊現場協作打造</p>
+        <p style={{ fontSize: '0.72rem', color: 'var(--muted)', letterSpacing: '0.05em' }}>v1.2 · 為影視製作、活動執行、場館支援、教會/非營利志工與臨時專案團隊打造</p>
       </footer>
     </div>
   )
@@ -250,7 +336,7 @@ function MockNavbar({ active }: { active: string }) {
       {['排班表', '我的排班', '年度回顧', '聯合群組', '管理'].map((label) => (
         <span key={label} style={{ fontSize: '0.65rem', color: label === active ? 'var(--gold)' : 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</span>
       ))}
-      <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--gold)', background: 'rgba(200,164,85,0.1)', border: '1px solid rgba(200,164,85,0.2)', padding: '0.15rem 0.5rem' }}>HOLYWOOD 影視</span>
+      <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--gold)', background: 'rgba(200,164,85,0.1)', border: '1px solid rgba(200,164,85,0.2)', padding: '0.15rem 0.5rem' }}>HOLYWOOD 團隊</span>
     </div>
   )
 }
@@ -472,6 +558,76 @@ function MockAvailability() {
           ))}
         </div>
         <p style={{ fontSize: '0.7rem', color: 'var(--muted)', marginTop: '0.75rem' }}>已登記 2 場</p>
+      </div>
+    </div>
+  )
+}
+
+function MockTeachingPlan() {
+  const lessons = [
+    {
+      date: '4/18（六）',
+      title: '桃源國小閱讀課',
+      meta: '08:30 集合 · 桃源國小圖書室',
+      note: '提醒：帶繪本、投影筆、點名表。窗口：陳老師 0912-345-678',
+      lead: '王雅婷',
+      assistant: '林以恩',
+    },
+    {
+      date: '4/25（六）',
+      title: '瑞峰國小自然課',
+      meta: '09:00 集合 · 瑞峰國小自然教室',
+      note: '提醒：雨備教案放在雲端，助教先確認材料箱。',
+      lead: '陳柏宇',
+      assistant: '待補位',
+    },
+  ]
+
+  return (
+    <div style={{ border: '1px solid var(--dark-border)', background: 'var(--dark-surface)', overflow: 'hidden' }}>
+      <MockNavbar active="排班表" />
+      <div style={{ padding: '1.25rem 1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', marginBottom: '0.9rem', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', color: 'var(--warm-white)', letterSpacing: '0.12em' }}>本月教學行程</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '0.2rem' }}>同一批志工老師，分散到不同學校與日期上課</div>
+          </div>
+          <span style={{ fontSize: '0.68rem', color: 'var(--gold)', border: '1px solid rgba(200,164,85,0.22)', padding: '0.25rem 0.55rem', background: 'rgba(200,164,85,0.08)' }}>
+            2 堂待執行
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+          {lessons.map((lesson) => (
+            <div key={lesson.title} style={{ border: '1px solid var(--dark-border)', background: 'var(--dark)', padding: '0.9rem 1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '0.7rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--gold)', marginBottom: '0.15rem' }}>{lesson.date}</div>
+                  <div style={{ fontSize: '0.92rem', color: 'var(--warm-white)' }}>{lesson.title}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '0.2rem' }}>{lesson.meta}</div>
+                </div>
+                <span style={{ fontSize: '0.65rem', color: 'var(--muted)', border: '1px solid var(--dark-border)', padding: '0.2rem 0.45rem' }}>
+                  活動說明可當提醒 note
+                </span>
+              </div>
+
+              <div style={{ fontSize: '0.72rem', color: 'var(--body-text)', lineHeight: 1.7, padding: '0.65rem 0.7rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.75rem' }}>
+                {lesson.note}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.6rem' }}>
+                <div style={{ border: '1px solid var(--dark-border)', padding: '0.6rem 0.7rem', background: 'rgba(200,164,85,0.05)' }}>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--muted)', marginBottom: '0.15rem' }}>主教老師</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--warm-white)' }}>{lesson.lead}</div>
+                </div>
+                <div style={{ border: '1px solid var(--dark-border)', padding: '0.6rem 0.7rem', background: 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--muted)', marginBottom: '0.15rem' }}>助教老師</div>
+                  <div style={{ fontSize: '0.8rem', color: lesson.assistant === '待補位' ? 'var(--gold)' : 'var(--warm-white)' }}>{lesson.assistant}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

@@ -36,7 +36,7 @@ export default function GuidePage() {
           使用說明
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '1rem', lineHeight: 1.8 }}>
-          HOLYWOOD 的核心流程是：先管理自己的團隊與活動，再把平時的排班與支援軌跡累積成年度回顧；必要時再把不同團隊拉進聯合群組協作。
+          HOLYWOOD 的核心流程是：先管理自己的團隊與活動，再把平時的排班與支援軌跡累積成年度回顧；必要時再把不同團隊拉進聯合群組協作。你可以把它理解成一個跨組織、多角色、短期任務型的人力協作平台。
         </p>
         <div style={{
           marginBottom: '3rem',
@@ -47,7 +47,7 @@ export default function GuidePage() {
           color: 'var(--muted)',
           lineHeight: 1.8,
         }}>
-          同一個帳號可以同時加入很多個團隊。你可以在 A 團隊是 Owner，在 B 團隊是 Admin 或 Member，也可以另外再建立自己的新團隊。
+          適用場景可擴到影視製作、活動執行、場館支援、教會 / 非營利志工、臨時專案團隊，也包含像偏鄉小學教學計畫這種時間與地點分散、但人力是同一批志工的任務型團隊。同一個帳號也可以同時加入很多個團隊，在不同團隊中保有不同角色。
         </div>
         <div style={{
           marginBottom: '3rem',
@@ -139,6 +139,26 @@ export default function GuidePage() {
           <section style={sectionStyle}>
             <div style={sectionNumberStyle}>04</div>
             <div>
+              <h2 style={h2Style}>如果你是偏鄉小學教學計畫</h2>
+              <p>
+                建議把整個計畫建立成一個 team，角色可設為
+                <strong style={{ color: 'var(--warm-white)' }}> 主教老師、助教老師、行政窗口、交通支援 </strong>
+                等。這樣每次上課時，就能直接知道這堂課目前有哪些老師會出現。
+              </p>
+              <p style={{ marginTop: '0.75rem' }}>
+                每一堂課都可建立成一個活動，例如「桃源國小閱讀課」或「瑞峰國小自然課」。若目前沒有獨立的地點欄位，可先把學校名稱放在活動標題，把集合點、教材提醒、帶隊窗口與注意事項寫在活動說明，當成這次行前 note。
+              </p>
+              <p style={{ marginTop: '0.75rem', color: 'var(--muted)', fontSize: '0.82rem' }}>
+                這種場景最適合用來回答兩件事：這次會有哪些老師出現？這堂課出發前有什麼提醒要一起看到？
+              </p>
+            </div>
+          </section>
+
+          <div style={dividerStyle} />
+
+          <section style={sectionStyle}>
+            <div style={sectionNumberStyle}>05</div>
+            <div>
               <h2 style={h2Style}>建立聯合群組</h2>
               <p>
                 當兩個團隊要一起完成同一場活動、專案或現場任務時，請先切到要代表操作的 team，然後前往
@@ -158,7 +178,7 @@ export default function GuidePage() {
           <div style={dividerStyle} />
 
           <section style={sectionStyle}>
-            <div style={sectionNumberStyle}>05</div>
+            <div style={sectionNumberStyle}>06</div>
             <div>
               <h2 style={h2Style}>邀請合作團隊加入聯合群組</h2>
               <p>
@@ -173,7 +193,7 @@ export default function GuidePage() {
           <div style={dividerStyle} />
 
           <section style={sectionStyle}>
-            <div style={sectionNumberStyle}>06</div>
+            <div style={sectionNumberStyle}>07</div>
             <div>
               <h2 style={h2Style}>共享說明、查看聯合時程總覽與衝突</h2>
               <p>
@@ -207,7 +227,7 @@ export default function GuidePage() {
           <div style={dividerStyle} />
 
           <section style={sectionStyle}>
-            <div style={sectionNumberStyle}>07</div>
+            <div style={sectionNumberStyle}>08</div>
             <div>
               <h2 style={h2Style}>年度回顧與遊戲化資料</h2>
               <p>
@@ -231,7 +251,7 @@ export default function GuidePage() {
           <div style={dividerStyle} />
 
           <section style={sectionStyle}>
-            <div style={sectionNumberStyle}>08</div>
+            <div style={sectionNumberStyle}>09</div>
             <div>
               <h2 style={h2Style}>角色與管理權限</h2>
               <p>每個 team 的角色分成三種：</p>

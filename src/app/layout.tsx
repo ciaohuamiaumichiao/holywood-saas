@@ -4,8 +4,8 @@ import { AuthProvider } from '@/context/AuthContext'
 import { TeamProvider } from '@/context/TeamContext'
 
 export const metadata: Metadata = {
-  title: 'HOLYWOOD — 影視排班平台',
-  description: '專為影視服事團隊打造的 SaaS 排班系統',
+  title: 'HOLYWOOD — 多團隊排班與協作平台',
+  description: '跨組織、多角色、短期任務型人力協作平台，適用影視製作、活動執行、場館支援、教會與非營利志工、臨時專案團隊',
   icons: {
     icon: '/icon.svg',
   },
