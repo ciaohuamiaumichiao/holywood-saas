@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
-import { subscribeToEvents, subscribeTeamSlots } from '@/lib/firestore'
-import { Event, RoleConfig, Slot } from '@/lib/types'
+import { subscribeToEvents } from '@/lib/firestore'
+import { Event, RoleConfig } from '@/lib/types'
 
 const WEEKDAY_ZH = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -21,19 +21,12 @@ function getToday() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function formatTimeRange(slot: Slot) {
-  const start = slot.startsAt.slice(11, 16)
-  const end = slot.endsAt?.slice(11, 16)
-  return end ? `${start}–${end}` : start
-}
-
 export default function MySchedulePage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const { activeTeam, activeTeamId } = useTeam()
 
   const [events, setEvents] = useState<Event[]>([])
-  const [slots, setSlots] = useState<Slot[]>([])
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -47,29 +40,32 @@ export default function MySchedulePage() {
     return () => unsub()
   }, [activeTeamId])
 
-  useEffect(() => {
-    if (!activeTeamId) return
-    const unsub = subscribeTeamSlots(activeTeamId, setSlots)
-    return () => unsub()
-  }, [activeTeamId])
-
   const roles: RoleConfig[] = activeTeam?.roles
     ? [...activeTeam.roles].sort((a, b) => a.order - b.order)
     : []
 
   const roleLabel = (roleId: string) => roles.find(r => r.id === roleId)?.label || roleId
 
-  const eventsMap = useMemo(() => {
-    const m: Record<string, Event> = {}
-    events.forEach(e => { m[e.id] = e })
-    return m
-  }, [events])
-
   const today = getToday()
   const userId = user?.uid ?? ''
-  const mySlots = slots
-    .filter(s => s.slotDate >= today && !!userId && s.assigneeIds?.includes(userId))
-    .sort((a, b) => a.slotDate.localeCompare(b.slotDate) || a.startsAt.localeCompare(b.startsAt))
+  const myAssignments = useMemo(() => {
+    if (!userId) return []
+
+    return events
+      .filter((event) => event.date >= today)
+      .flatMap((event) =>
+        (event.requirements ?? [])
+          .filter((requirement) => (requirement.assigneeIds ?? []).includes(userId))
+          .map((requirement) => ({
+            id: `event:${event.id}:${requirement.roleId}`,
+            date: event.date,
+            title: event.title || '活動',
+            roleId: requirement.roleId,
+            noteText: event.description?.trim() || '',
+          }))
+      )
+      .sort((left, right) => left.date.localeCompare(right.date) || left.title.localeCompare(right.title))
+  }, [events, today, userId])
 
   if (authLoading || !user) return null
 
@@ -89,34 +85,39 @@ export default function MySchedulePage() {
       <Navbar />
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem 1.5rem' }}>
         <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.8rem', letterSpacing: '0.15em', color: 'var(--warm-white)', marginBottom: '1.2rem' }}>
-          我的時段
+          我的排班
         </h1>
 
-        {mySlots.length === 0 && (
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>你目前沒有已報名的時段</p>
+        {myAssignments.length === 0 && (
+          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>你目前沒有已加入的活動</p>
         )}
 
-        {mySlots.map(slot => {
-          const event = eventsMap[slot.eventId]
+        {myAssignments.map((assignment) => {
           return (
-            <div key={slot.id} style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', padding: '1.1rem 1.3rem', marginBottom: '0.85rem', borderRadius: 10 }}>
+            <div key={assignment.id} style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', padding: '1.1rem 1.3rem', marginBottom: '0.85rem', borderRadius: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.6rem' }}>
                 <div>
                   <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', letterSpacing: '0.1em', color: 'var(--gold)', marginRight: '0.65rem' }}>
-                    {formatDate(slot.slotDate)}
+                    {formatDate(assignment.date)}
                   </span>
                   <span style={{ fontSize: '0.95rem', color: 'var(--warm-white)' }}>
-                    {event?.title || slot.title || '活動'}
+                    {assignment.title}
                   </span>
                 </div>
-                <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{formatTimeRange(slot)}</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>活動需求</span>
               </div>
+
+              {assignment.noteText && (
+                <div style={{ color: 'var(--muted)', fontSize: '0.82rem', marginBottom: '0.55rem', lineHeight: 1.7 }}>
+                  {assignment.noteText}
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.3rem' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--muted)', letterSpacing: '0.05em' }}>
-                  崗位：{roleLabel(slot.roleId)}
+                  崗位：{roleLabel(assignment.roleId)}
                 </span>
-                <span style={{ fontSize: '0.85rem', color: 'var(--gold)' }}>已報名</span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--gold)' }}>已加入活動</span>
               </div>
             </div>
           )

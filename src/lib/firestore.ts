@@ -18,11 +18,13 @@ import {
 } from 'firebase/firestore'
 import { db } from './firebase'
 import { Session, SwapRequest, Role, Assignment, Comment, Availability, Event, Slot, SlotAssignment, ScheduleHistoryEntry } from './types'
+import { normalizeEventRequirements } from './event-requirements'
 
 // ─── 路徑輔助 ─────────────────────────────────────────────────────────────────
 const sessionsCol = (teamId: string) => collection(db, 'teams', teamId, 'sessions')
 const sessionDoc = (teamId: string, id: string) => doc(db, 'teams', teamId, 'sessions', id)
 const eventsCol = (teamId: string) => collection(db, 'teams', teamId, 'events')
+const eventDoc = (teamId: string, id: string) => doc(db, 'teams', teamId, 'events', id)
 const slotsCol = (teamId: string) => collection(db, 'teams', teamId, 'slots')
 const slotDoc = (teamId: string, id: string) => doc(db, 'teams', teamId, 'slots', id)
 const commentsCol = (teamId: string, sessionId: string) =>
@@ -64,11 +66,32 @@ export async function createEvent(
     ...data,
     title,
     description: data.description?.trim() || '',
+    requirements: normalizeEventRequirements(data.requirements),
     id: ref.id,
     teamId,
     createdAt: Date.now(),
   })
   return ref.id
+}
+
+export async function updateEvent(
+  teamId: string,
+  eventId: string,
+  data: Partial<Pick<Event, 'title' | 'date' | 'type' | 'description' | 'requirements'>>
+): Promise<void> {
+  const payload: Partial<Event> = { ...data }
+
+  if (typeof data.title === 'string') {
+    payload.title = data.title.trim()
+  }
+  if (typeof data.description === 'string') {
+    payload.description = data.description.trim()
+  }
+  if (data.requirements) {
+    payload.requirements = normalizeEventRequirements(data.requirements)
+  }
+
+  await updateDoc(eventDoc(teamId, eventId), payload)
 }
 
 export async function getEvents(teamId: string): Promise<Event[]> {

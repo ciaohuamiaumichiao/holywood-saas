@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
-import { subscribeToEvents, subscribeTeamSlots } from '@/lib/firestore'
+import { subscribeToEvents } from '@/lib/firestore'
 import { postJsonWithAuth } from '@/lib/authed-post'
-import { Event, RoleConfig, Slot } from '@/lib/types'
+import { Event, EventRequirement, RoleConfig } from '@/lib/types'
 
 const WEEKDAY_ZH = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -23,19 +23,12 @@ function getToday() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function formatTimeRange(slot: Slot) {
-  const start = slot.startsAt.slice(11, 16)
-  const end = slot.endsAt?.slice(11, 16)
-  return end ? `${start}–${end}` : start
-}
-
 export default function SchedulePage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const { activeTeam, activeTeamId } = useTeam()
 
   const [events, setEvents] = useState<Event[]>([])
-  const [slots, setSlots] = useState<Slot[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -51,69 +44,53 @@ export default function SchedulePage() {
     return () => unsub()
   }, [activeTeamId])
 
-  useEffect(() => {
-    if (!activeTeamId) return
-    const unsub = subscribeTeamSlots(activeTeamId, setSlots)
-    return () => unsub()
-  }, [activeTeamId])
-
   const roles: RoleConfig[] = activeTeam?.roles
     ? [...activeTeam.roles].sort((a, b) => a.order - b.order)
     : []
 
-  const roleLabel = (roleId: string) => roles.find(r => r.id === roleId)?.label || roleId
+  const roleLabel = (roleId: string) => roles.find((role) => role.id === roleId)?.label || roleId
 
   const today = getToday()
-  const futureSlots = slots.filter(s => s.slotDate >= today)
-  const futureEvents = useMemo(() => {
-    return events.filter((event) => event.date >= today || Boolean(futureSlots.some((slot) => slot.eventId === event.id)))
-  }, [events, futureSlots, today])
-  const slotsByEvent = useMemo(() => {
-    const grouped: Record<string, Slot[]> = {}
-    futureSlots.forEach(s => {
-      if (!grouped[s.eventId]) grouped[s.eventId] = []
-      grouped[s.eventId].push(s)
-    })
-    Object.values(grouped).forEach(list => list.sort((a, b) => a.slotDate.localeCompare(b.slotDate) || a.startsAt.localeCompare(b.startsAt)))
-    return grouped
-  }, [futureSlots])
-
   const sortedEvents = useMemo(() => {
-    return futureEvents
-      .sort((a, b) => a.date.localeCompare(b.date))
-  }, [futureEvents])
+    return events
+      .filter((event) => event.date >= today && (event.requirements ?? []).some((requirement) => requirement.capacity > 0))
+      .sort((left, right) => left.date.localeCompare(right.date))
+  }, [events, today])
 
   if (authLoading || !user) return null
 
-  async function handleAssign(slot: Slot) {
+  async function handleAssignEvent(event: Event, requirement: EventRequirement) {
     if (!activeTeamId || !user) return
-    setBusy(slot.id)
+    const busyKey = `${event.id}:${requirement.roleId}`
+    setBusy(busyKey)
     setFeedback(null)
     try {
-      const { result } = await postJsonWithAuth<{ result: 'ok' | 'full' | 'conflict' | 'not_found' }>(
-        '/api/slots/assignment',
-        { teamId: activeTeamId, slotId: slot.id, operation: 'assign' }
+      const { result } = await postJsonWithAuth<{ result: 'ok' | 'full' | 'already_has_role' | 'not_found' }>(
+        '/api/events/assignment',
+        { teamId: activeTeamId, eventId: event.id, roleId: requirement.roleId, operation: 'assign' }
       )
-      if (result === 'full') setFeedback({ type: 'error', text: '此時段名額已滿' })
-      else if (result === 'conflict') setFeedback({ type: 'error', text: '與你已報名的時段時間重疊' })
-      else if (result === 'not_found') setFeedback({ type: 'error', text: '此時段已不存在' })
-      else setFeedback({ type: 'success', text: '報名成功' })
+      if (result === 'full') setFeedback({ type: 'error', text: '這個角色名額已滿' })
+      else if (result === 'already_has_role') setFeedback({ type: 'error', text: '你在這個活動已經報名其他角色' })
+      else if (result === 'not_found') setFeedback({ type: 'error', text: '這個活動角色需求已不存在' })
+      else setFeedback({ type: 'success', text: '已加入這次活動' })
     } finally {
       setBusy(null)
     }
   }
 
-  async function handleUnassign(slot: Slot) {
+  async function handleUnassignEvent(event: Event, requirement: EventRequirement) {
     if (!activeTeamId || !user) return
-    setBusy(slot.id)
+    const busyKey = `${event.id}:${requirement.roleId}`
+    setBusy(busyKey)
     setFeedback(null)
     try {
-      await postJsonWithAuth('/api/slots/assignment', {
+      await postJsonWithAuth('/api/events/assignment', {
         teamId: activeTeamId,
-        slotId: slot.id,
+        eventId: event.id,
+        roleId: requirement.roleId,
         operation: 'unassign',
       })
-      setFeedback({ type: 'success', text: '已取消報名' })
+      setFeedback({ type: 'success', text: '已取消這次活動的報名' })
     } finally {
       setBusy(null)
     }
@@ -124,17 +101,17 @@ export default function SchedulePage() {
       <Navbar />
       <div style={{ maxWidth: 980, margin: '0 auto', padding: '2rem 1.2rem 3rem' }}>
         <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.9rem', letterSpacing: '0.14em', color: 'var(--warm-white)', marginBottom: '0.75rem' }}>
-          排班表（時段制）
+          排班表
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '1.2rem' }}>
-          依活動與時段報名；同一時段不可重複佔位。
+          以活動需求作為唯一主流程。每個活動直接顯示這次需要哪些角色與目前已報名人數。
         </p>
 
         {feedback && (
           <div style={{
             background: feedback.type === 'error' ? 'rgba(224,85,85,0.08)' : 'rgba(118,188,129,0.08)',
             border: `1px solid ${feedback.type === 'error' ? 'rgba(224,85,85,0.4)' : 'rgba(118,188,129,0.4)'}`,
-            color: feedback.type === 'error' ? '#f08' : '#82c49b',
+            color: feedback.type === 'error' ? '#f0aaaa' : '#82c49b',
             padding: '0.75rem 1rem',
             borderRadius: 10,
             marginBottom: '1rem',
@@ -145,17 +122,22 @@ export default function SchedulePage() {
         )}
 
         {sortedEvents.length === 0 && (
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>目前沒有即將到來的活動或時段</p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>目前沒有即將到來且已開放報名的活動</p>
         )}
 
-        {sortedEvents.map(event => {
-          const eventSlots = slotsByEvent[event.id] || []
+        {sortedEvents.map((event) => {
+          const eventRequirements = [...(event.requirements ?? [])]
+            .filter((requirement) => requirement.capacity > 0)
+            .sort((left, right) => {
+              const leftOrder = roles.find((role) => role.id === left.roleId)?.order ?? Number.MAX_SAFE_INTEGER
+              const rightOrder = roles.find((role) => role.id === right.roleId)?.order ?? Number.MAX_SAFE_INTEGER
+              return leftOrder - rightOrder
+            })
 
           return (
             <div key={event.id} style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', padding: '1.25rem 1.4rem', marginBottom: '1rem', borderRadius: 12 }}>
-              {/* Event header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.8rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', letterSpacing: '0.1em', color: 'var(--gold)' }}>
                     {formatDate(event.date)}
                   </span>
@@ -165,30 +147,29 @@ export default function SchedulePage() {
                     padding: '2px 8px',
                     borderRadius: '999px',
                     background: event.type === 'special' ? 'rgba(200,164,85,0.2)' : 'rgba(138,132,120,0.15)',
-                    color: event.type === 'special' ? 'var(--gold)' : 'var(--muted)'
+                    color: event.type === 'special' ? 'var(--gold)' : 'var(--muted)',
                   }}>
                     {event.type === 'special' ? '特別' : '一般'}
                   </span>
                 </div>
               </div>
+
               {event.description && (
                 <div style={{ fontSize: '0.82rem', color: 'var(--muted)', marginBottom: '0.8rem' }}>
                   {event.description}
                 </div>
               )}
 
-              {eventSlots.length === 0 && (
-                <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>此活動尚無時段</p>
-              )}
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {eventSlots.map(slot => {
-                  const assignees = Object.values(slot.assignments || {})
-                  const isMe = slot.assigneeIds?.includes(user.uid)
-                  const isFull = (slot.assigneeIds?.length || 0) >= slot.capacity
-                  const btnDisabled = busy === slot.id
+                {eventRequirements.map((requirement) => {
+                  const assignees = Object.values(requirement.assignments || {})
+                  const isMe = (requirement.assigneeIds ?? []).includes(user.uid)
+                  const isFull = (requirement.assigneeIds?.length || 0) >= requirement.capacity
+                  const busyKey = `${event.id}:${requirement.roleId}`
+                  const btnDisabled = busy === busyKey
+
                   return (
-                    <div key={slot.id} style={{
+                    <div key={`${event.id}:${requirement.roleId}`} style={{
                       border: '1px solid var(--dark-border)',
                       borderRadius: 10,
                       padding: '0.75rem 0.9rem',
@@ -200,26 +181,26 @@ export default function SchedulePage() {
                     }}>
                       <div>
                         <div style={{ color: 'var(--muted)', fontSize: '0.78rem', letterSpacing: '0.08em' }}>
-                          {slot.slotDate && formatDate(slot.slotDate)}
+                          {formatDate(event.date)}
                         </div>
                         <div style={{ color: 'var(--warm-white)', fontWeight: 600, fontSize: '0.95rem' }}>
-                          {formatTimeRange(slot)}
+                          活動需求
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '0.9rem', color: 'var(--warm-white)' }}>{slot.title || roleLabel(slot.roleId)}</span>
+                          <span style={{ fontSize: '0.9rem', color: 'var(--warm-white)' }}>{roleLabel(requirement.roleId)}</span>
                           <span style={{ fontSize: '0.76rem', color: 'var(--muted)', letterSpacing: '0.05em' }}>
-                            {roleLabel(slot.roleId)} · {assignees.length}/{slot.capacity}
+                            {assignees.length}/{requirement.capacity} 位
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                          {assignees.map(a => (
-                            <div key={a.userId} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid var(--dark-border)' }}>
-                              {a.photoURL && <img src={a.photoURL} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />}
-                              <span style={{ color: a.userId === user.uid ? 'var(--gold)' : 'var(--warm-white)', fontSize: '0.82rem' }}>
-                                {a.displayName}{a.userId === user.uid ? '（我）' : ''}
+                          {assignees.map((assignment) => (
+                            <div key={assignment.userId} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid var(--dark-border)' }}>
+                              {assignment.photoURL && <img src={assignment.photoURL} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />}
+                              <span style={{ color: assignment.userId === user.uid ? 'var(--gold)' : 'var(--warm-white)', fontSize: '0.82rem' }}>
+                                {assignment.displayName}{assignment.userId === user.uid ? '（我）' : ''}
                               </span>
                             </div>
                           ))}
@@ -232,7 +213,7 @@ export default function SchedulePage() {
                       <div style={{ display: 'flex', gap: '0.4rem' }}>
                         {isMe ? (
                           <button
-                            onClick={() => handleUnassign(slot)}
+                            onClick={() => handleUnassignEvent(event, requirement)}
                             disabled={btnDisabled}
                             style={{
                               background: 'transparent',
@@ -248,7 +229,7 @@ export default function SchedulePage() {
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleAssign(slot)}
+                            onClick={() => handleAssignEvent(event, requirement)}
                             disabled={btnDisabled || isFull}
                             style={{
                               background: isFull ? 'var(--dark-border)' : 'rgba(200,164,85,0.12)',
@@ -260,7 +241,7 @@ export default function SchedulePage() {
                               borderRadius: 8,
                             }}
                           >
-                            {isFull ? '名額已滿' : '報名'}
+                            {isFull ? '已滿' : '加入活動'}
                           </button>
                         )}
                       </div>

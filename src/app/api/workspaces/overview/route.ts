@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminDb } from '@/lib/firebase-admin'
 import { ApiError, parseJsonObject, readRequiredString, requireAuthUid } from '@/lib/server-auth'
 import { requireActorTeamContext } from '@/lib/server-team-access'
-import { Event, Slot, Team, WorkspaceTeam } from '@/lib/types'
+import { Event, Team, WorkspaceTeam } from '@/lib/types'
 
 export const runtime = 'nodejs'
 
@@ -10,10 +10,8 @@ type WorkspaceScheduleEntry = {
   id: string
   teamId: string
   teamName: string
-  slotId: string
-  slotDate: string
-  startsAt: string
-  endsAt: string
+  eventId: string
+  eventDate: string
   eventTitle: string
   roleLabel: string
   assignees: Array<{
@@ -32,29 +30,23 @@ type WorkspaceConflict = {
       entryId: string
       teamId: string
       teamName: string
+      eventDate: string
       eventTitle: string
       roleLabel: string
-      startsAt: string
-      endsAt: string
     },
     {
       entryId: string
       teamId: string
       teamName: string
+      eventDate: string
       eventTitle: string
       roleLabel: string
-      startsAt: string
-      endsAt: string
     },
   ]
 }
 
 function isValidDateString(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value)
-}
-
-function rangesOverlap(left: WorkspaceScheduleEntry, right: WorkspaceScheduleEntry) {
-  return left.startsAt < right.endsAt && right.startsAt < left.endsAt
 }
 
 export async function POST(req: NextRequest) {
@@ -109,50 +101,43 @@ export async function POST(req: NextRequest) {
       const team = teamMap.get(linkedTeamId)
       if (!team) return
 
-      const [eventsSnap, slotsSnap] = await Promise.all([
-        adminDb.collection('teams').doc(linkedTeamId).collection('events').get(),
-        adminDb.collection('teams').doc(linkedTeamId).collection('slots').get(),
-      ])
-
-      const eventTitleMap = new Map<string, string>()
-      eventsSnap.docs.forEach((eventDoc) => {
-        const event = eventDoc.data() as Event
-        eventTitleMap.set(event.id, event.title)
-      })
+      const eventsSnap = await adminDb.collection('teams').doc(linkedTeamId).collection('events').get()
 
       const teamName =
         linkedTeams.find((linkedTeam) => linkedTeam.teamId === linkedTeamId)?.teamName ||
         team.name
       const roleLabelMap = new Map(team.roles.map((role) => [role.id, role.label]))
 
-      slotsSnap.docs.forEach((slotDoc) => {
-        const slot = slotDoc.data() as Slot
-        if (slot.slotDate < dateFrom || slot.slotDate > dateTo) return
+      eventsSnap.docs.forEach((eventDoc) => {
+        const event = eventDoc.data() as Event
+        if (event.date < dateFrom || event.date > dateTo) return
 
-        const assignments = Object.entries(slot.assignments || {}).map(([userId, assignment]) => ({
-          userId,
-          displayName: assignment.displayName,
-        }))
+        ;(event.requirements ?? [])
+          .filter((requirement) => requirement.capacity > 0)
+          .forEach((requirement) => {
+            const assignments = Object.entries(requirement.assignments || {}).map(([userId, assignment]) => ({
+              userId,
+              displayName: assignment.displayName,
+            }))
 
-        entries.push({
-          id: `${linkedTeamId}:${slot.id}`,
-          teamId: linkedTeamId,
-          teamName,
-          slotId: slot.id,
-          slotDate: slot.slotDate,
-          startsAt: slot.startsAt,
-          endsAt: slot.endsAt,
-          eventTitle: eventTitleMap.get(slot.eventId) || slot.title || '未命名活動',
-          roleLabel: roleLabelMap.get(slot.roleId) || slot.title || slot.roleId,
-          assignees: assignments,
-          conflictUserIds: [],
-        })
+            entries.push({
+              id: `${linkedTeamId}:${event.id}:${requirement.roleId}`,
+              teamId: linkedTeamId,
+              teamName,
+              eventId: event.id,
+              eventDate: event.date,
+              eventTitle: event.title || '未命名活動',
+              roleLabel: roleLabelMap.get(requirement.roleId) || requirement.roleId,
+              assignees: assignments,
+              conflictUserIds: [],
+            })
+          })
       })
     }))
 
     entries.sort((left, right) => {
-      if (left.slotDate !== right.slotDate) return left.slotDate.localeCompare(right.slotDate)
-      if (left.startsAt !== right.startsAt) return left.startsAt.localeCompare(right.startsAt)
+      if (left.eventDate !== right.eventDate) return left.eventDate.localeCompare(right.eventDate)
+      if (left.eventTitle !== right.eventTitle) return left.eventTitle.localeCompare(right.eventTitle)
       return left.teamName.localeCompare(right.teamName)
     })
 
@@ -170,13 +155,13 @@ export async function POST(req: NextRequest) {
     const conflicts: WorkspaceConflict[] = []
 
     userAssignments.forEach((assignments, userId) => {
-      const sortedAssignments = [...assignments].sort((left, right) => left.entry.startsAt.localeCompare(right.entry.startsAt))
+      const sortedAssignments = [...assignments].sort((left, right) => left.entry.eventDate.localeCompare(right.entry.eventDate))
       for (let index = 0; index < sortedAssignments.length; index += 1) {
         const current = sortedAssignments[index]
         for (let nextIndex = index + 1; nextIndex < sortedAssignments.length; nextIndex += 1) {
           const next = sortedAssignments[nextIndex]
           if (current.entry.teamId === next.entry.teamId) continue
-          if (!rangesOverlap(current.entry, next.entry)) continue
+          if (current.entry.eventDate !== next.entry.eventDate) continue
 
           const currentEntry = entryById.get(current.entry.id)
           const nextEntry = entryById.get(next.entry.id)
@@ -196,19 +181,17 @@ export async function POST(req: NextRequest) {
                 entryId: current.entry.id,
                 teamId: current.entry.teamId,
                 teamName: current.entry.teamName,
+                eventDate: current.entry.eventDate,
                 eventTitle: current.entry.eventTitle,
                 roleLabel: current.entry.roleLabel,
-                startsAt: current.entry.startsAt,
-                endsAt: current.entry.endsAt,
               },
               {
                 entryId: next.entry.id,
                 teamId: next.entry.teamId,
                 teamName: next.entry.teamName,
+                eventDate: next.entry.eventDate,
                 eventTitle: next.entry.eventTitle,
                 roleLabel: next.entry.roleLabel,
-                startsAt: next.entry.startsAt,
-                endsAt: next.entry.endsAt,
               },
             ],
           })

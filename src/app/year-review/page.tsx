@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
-import { subscribeToEvents, subscribeToScheduleHistory, subscribeTeamSlots, subscribeToTeamSwaps } from '@/lib/firestore'
+import { subscribeToEvents, subscribeToScheduleHistory, subscribeToTeamSwaps } from '@/lib/firestore'
 import { subscribeToTeamMembers } from '@/lib/firestore-teams'
-import { Event, ScheduleHistoryEntry, Slot, SwapRequest, TeamMember } from '@/lib/types'
+import { Event, ScheduleHistoryEntry, SwapRequest, TeamMember } from '@/lib/types'
 
 type MemberProfile = {
   uid: string
@@ -20,7 +20,6 @@ type ReviewStats = {
   name: string
   photoURL: string
   assignments: number
-  totalHours: number
   distinctRoles: number
   specialAssignments: number
   swapRequests: number
@@ -46,19 +45,13 @@ function yearFromDateText(value: string | undefined) {
   return Number.isFinite(year) ? year : null
 }
 
-function slotHours(slot: Slot) {
-  const diff = Date.parse(slot.endsAt) - Date.parse(slot.startsAt)
-  if (!Number.isFinite(diff) || diff <= 0) return 0
-  return diff / 3600000
-}
-
 function buildBadges(stats: Omit<ReviewStats, 'badges'>) {
   const badges: string[] = []
   if (stats.assignments >= 12) badges.push('出勤之星')
   if (stats.distinctRoles >= 3) badges.push('多面手')
   if (stats.swapHelps >= 2) badges.push('救援王')
   if (stats.activeMonths >= 4) badges.push('穩定同行')
-  if (stats.totalHours >= 20) badges.push('長跑戰將')
+  if (stats.assignments >= 20 || stats.activeMonths >= 6) badges.push('長跑戰將')
   return badges.slice(0, 4)
 }
 
@@ -69,7 +62,6 @@ export default function YearReviewPage() {
 
   const [members, setMembers] = useState<TeamMember[]>([])
   const [events, setEvents] = useState<Event[]>([])
-  const [slots, setSlots] = useState<Slot[]>([])
   const [historyEntries, setHistoryEntries] = useState<ScheduleHistoryEntry[]>([])
   const [swaps, setSwaps] = useState<SwapRequest[]>([])
   const [selectedYear, setSelectedYear] = useState(currentYear)
@@ -84,13 +76,11 @@ export default function YearReviewPage() {
     if (!activeTeamId) return
     const unsubMembers = subscribeToTeamMembers(activeTeamId, setMembers)
     const unsubEvents = subscribeToEvents(activeTeamId, setEvents)
-    const unsubSlots = subscribeTeamSlots(activeTeamId, setSlots)
     const unsubHistory = subscribeToScheduleHistory(activeTeamId, setHistoryEntries)
     const unsubSwaps = subscribeToTeamSwaps(activeTeamId, setSwaps)
     return () => {
       unsubMembers()
       unsubEvents()
-      unsubSlots()
       unsubHistory()
       unsubSwaps()
     }
@@ -105,12 +95,6 @@ export default function YearReviewPage() {
     return map
   }, [events])
 
-  const slotMap = useMemo(() => {
-    const map = new Map<string, Slot>()
-    slots.forEach((slot) => map.set(slot.id, slot))
-    return map
-  }, [slots])
-
   const memberProfiles = useMemo(() => {
     const map = new Map<string, MemberProfile>()
 
@@ -122,16 +106,18 @@ export default function YearReviewPage() {
       })
     })
 
-    slots.forEach((slot) => {
-      Object.values(slot.assignments || {}).forEach((assignment) => {
-        if (!assignment.userId) return
-        if (!map.has(assignment.userId)) {
-          map.set(assignment.userId, {
-            uid: assignment.userId,
-            name: assignment.displayName || assignment.userId,
-            photoURL: assignment.photoURL ?? '',
-          })
-        }
+    events.forEach((event) => {
+      ;(event.requirements ?? []).forEach((requirement) => {
+        Object.values(requirement.assignments || {}).forEach((assignment) => {
+          if (!assignment.userId) return
+          if (!map.has(assignment.userId)) {
+            map.set(assignment.userId, {
+              uid: assignment.userId,
+              name: assignment.displayName || assignment.userId,
+              photoURL: assignment.photoURL ?? '',
+            })
+          }
+        })
       })
     })
 
@@ -163,12 +149,12 @@ export default function YearReviewPage() {
     })
 
     return Array.from(map.values())
-  }, [historyEntries, members, slots, swaps])
+  }, [events, historyEntries, members, swaps])
 
   const availableYears = useMemo(() => {
     const years = new Set<number>()
-    slots.forEach((slot) => {
-      const year = yearFromDateText(slot.slotDate)
+    events.forEach((event) => {
+      const year = yearFromDateText(event.date)
       if (year) years.add(year)
     })
     swaps.forEach((swap) => {
@@ -180,15 +166,15 @@ export default function YearReviewPage() {
     })
     years.add(currentYear)
     return Array.from(years).sort((a, b) => b - a)
-  }, [historyEntries, slots, swaps])
+  }, [events, historyEntries, swaps])
 
   const activeYear = availableYears.includes(selectedYear)
     ? selectedYear
     : availableYears[0] ?? currentYear
 
-  const yearSlots = useMemo(
-    () => slots.filter((slot) => yearFromDateText(slot.slotDate) === activeYear),
-    [activeYear, slots]
+  const yearEvents = useMemo(
+    () => events.filter((event) => yearFromDateText(event.date) === activeYear),
+    [activeYear, events]
   )
   const yearSwaps = useMemo(
     () =>
@@ -209,7 +195,6 @@ export default function YearReviewPage() {
       name: string
       photoURL: string
       assignments: number
-      totalHours: number
       roleCounts: Map<string, number>
       specialAssignments: number
       swapRequests: number
@@ -229,7 +214,6 @@ export default function YearReviewPage() {
         name: profile?.name || fallbackName || uid,
         photoURL: profile?.photoURL || fallbackPhoto,
         assignments: 0,
-        totalHours: 0,
         roleCounts: new Map<string, number>(),
         specialAssignments: 0,
         swapRequests: 0,
@@ -247,23 +231,22 @@ export default function YearReviewPage() {
       ensureStats(member.uid, member.name, member.photoURL)
     })
 
-    yearSlots.forEach((slot) => {
-      const hours = slotHours(slot)
-      const event = eventMap.get(slot.eventId)
-      Object.values(slot.assignments || {}).forEach((assignment) => {
-        if (!assignment.userId) return
-        const stats = ensureStats(
-          assignment.userId,
-          assignment.displayName || assignment.userId,
-          assignment.photoURL ?? ''
-        )
-        stats.assignments += 1
-        stats.totalHours += hours
-        stats.months.add(slot.slotDate.slice(0, 7))
-        stats.roleCounts.set(slot.roleId, (stats.roleCounts.get(slot.roleId) ?? 0) + 1)
-        if (event?.type === 'special') {
-          stats.specialAssignments += 1
-        }
+    yearEvents.forEach((event) => {
+      ;(event.requirements ?? []).forEach((requirement) => {
+        Object.values(requirement.assignments || {}).forEach((assignment) => {
+          if (!assignment.userId) return
+          const stats = ensureStats(
+            assignment.userId,
+            assignment.displayName || assignment.userId,
+            assignment.photoURL ?? ''
+          )
+          stats.assignments += 1
+          stats.months.add(event.date.slice(0, 7))
+          stats.roleCounts.set(requirement.roleId, (stats.roleCounts.get(requirement.roleId) ?? 0) + 1)
+          if (event.type === 'special') {
+            stats.specialAssignments += 1
+          }
+        })
       })
     })
 
@@ -287,8 +270,8 @@ export default function YearReviewPage() {
 
     yearHistory.forEach((entry) => {
       const stats = ensureStats(entry.userId, entry.displayName || entry.userId, entry.photoURL ?? '')
-      if (entry.action === 'slot_joined') stats.joinActions += 1
-      if (entry.action === 'slot_left') stats.leaveActions += 1
+      if (entry.action === 'slot_joined' || entry.action === 'event_joined') stats.joinActions += 1
+      if (entry.action === 'slot_left' || entry.action === 'event_left') stats.leaveActions += 1
     })
 
     return Array.from(statsMap.values())
@@ -300,7 +283,6 @@ export default function YearReviewPage() {
         const activeMonths = stats.months.size
         const points =
           stats.assignments * 10 +
-          Math.round(stats.totalHours) +
           distinctRoles * 6 +
           stats.swapAccepted * 8 +
           stats.swapHelps * 12 +
@@ -312,7 +294,6 @@ export default function YearReviewPage() {
           name: stats.name,
           photoURL: stats.photoURL,
           assignments: stats.assignments,
-          totalHours: stats.totalHours,
           distinctRoles,
           specialAssignments: stats.specialAssignments,
           swapRequests: stats.swapRequests,
@@ -331,12 +312,12 @@ export default function YearReviewPage() {
         }
       })
       .sort((a, b) => b.points - a.points || b.assignments - a.assignments || a.name.localeCompare(b.name))
-  }, [eventMap, memberProfiles, yearHistory, yearSlots, yearSwaps])
+  }, [memberProfiles, yearEvents, yearHistory, yearSwaps])
 
   const myStats = memberStats.find((stats) => stats.uid === user?.uid) ?? null
   const totalAssignments = memberStats.reduce((sum, stats) => sum + stats.assignments, 0)
-  const totalHours = memberStats.reduce((sum, stats) => sum + stats.totalHours, 0)
   const totalAcceptedSwaps = yearSwaps.filter((swap) => swap.status === 'accepted').length
+  const totalJoinActions = yearHistory.filter((entry) => entry.action === 'event_joined' || entry.action === 'slot_joined').length
   const topContributor = memberStats[0] ?? null
   const topSupporter =
     [...memberStats].sort((a, b) => b.swapHelps - a.swapHelps || b.points - a.points)[0] ?? null
@@ -392,7 +373,7 @@ export default function YearReviewPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.8rem', marginBottom: '1.4rem' }}>
           <SummaryCard label="總排班次數" value={String(totalAssignments)} hint={`${activeYear} 年累積`} />
-          <SummaryCard label="總服務時數" value={`${totalHours.toFixed(1)}h`} hint="依最終排班計算" />
+          <SummaryCard label="報名動作" value={String(totalJoinActions)} hint="包含活動報名與舊資料歷程" />
           <SummaryCard label="成功換班" value={String(totalAcceptedSwaps)} hint="已接受的換班請求" />
           <SummaryCard label="團隊人數" value={String(memberStats.length)} hint={activeTeam?.name || '目前團隊'} />
         </div>
@@ -417,11 +398,11 @@ export default function YearReviewPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.7rem', marginTop: '1rem' }}>
               <MetricTile label="排班次數" value={String(myStats.assignments)} />
-              <MetricTile label="服務時數" value={`${myStats.totalHours.toFixed(1)}h`} />
               <MetricTile label="主要崗位數" value={String(myStats.distinctRoles)} />
               <MetricTile label="換班成功" value={String(myStats.swapAccepted)} />
               <MetricTile label="支援他人" value={String(myStats.swapHelps)} />
               <MetricTile label="活躍月份" value={String(myStats.activeMonths)} />
+              <MetricTile label="取消報名" value={String(myStats.leaveActions)} />
             </div>
           </section>
         )}
@@ -462,7 +443,7 @@ export default function YearReviewPage() {
                       <div>
                         <div style={{ color: 'var(--warm-white)', fontWeight: 600 }}>{stats.name}</div>
                         <div style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>
-                          {stats.assignments} 次排班 · {stats.totalHours.toFixed(1)}h · {stats.swapAccepted} 次換班成功
+                          {stats.assignments} 次排班 · {stats.distinctRoles} 種崗位 · {stats.swapAccepted} 次換班成功
                         </div>
                       </div>
                     </div>
@@ -503,15 +484,17 @@ export default function YearReviewPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', marginTop: '0.95rem' }}>
                 {yearHistory.slice(0, 10).map((entry) => {
                   const event = eventMap.get(entry.eventId)
-                  const slot = slotMap.get(entry.slotId)
-                  const actionText = entry.action === 'slot_joined' ? '報名加入' : '取消報名'
+                  const actionText =
+                    entry.action === 'slot_joined' || entry.action === 'event_joined'
+                      ? '報名加入'
+                      : '取消報名'
                   return (
                     <div key={entry.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.65rem' }}>
                       <div style={{ color: 'var(--warm-white)', fontSize: '0.85rem' }}>
                         {entry.displayName} {actionText}
                       </div>
                       <div style={{ color: 'var(--muted)', fontSize: '0.76rem', marginTop: '0.2rem' }}>
-                        {event?.title || entry.slotTitle || roleLabel(entry.roleId)} · {slot?.slotDate || entry.slotDate} · {roleLabel(entry.roleId)}
+                        {entry.eventTitle || event?.title || entry.slotTitle || roleLabel(entry.roleId)} · {entry.slotDate || event?.date || '未指定日期'} · {roleLabel(entry.roleId)}
                       </div>
                     </div>
                   )

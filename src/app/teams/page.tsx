@@ -400,7 +400,7 @@ export default function TeamsPage() {
               color: 'var(--body-text)',
               lineHeight: 1.8,
             }}>
-              這會刪除整個團隊，以及其排班、活動、時段、邀請與相關聯的聯合群組關聯。刪除後無法復原。
+              這會刪除整個團隊，以及其排班歷程、活動、邀請與相關聯的聯合群組關聯。刪除後無法復原。
             </div>
 
             <div>

@@ -102,6 +102,17 @@ export interface Assignment {
 }
 
 // ─── Slot / Event (Week2 新模型) ─────────────────────────────────────────────
+export interface EventAssignment extends Assignment {
+  assignedAt: number
+}
+
+export interface EventRequirement {
+  roleId: Role
+  capacity: number
+  assigneeIds: string[]
+  assignments: Record<string, EventAssignment>
+}
+
 export interface Event {
   id: string
   teamId: string
@@ -109,6 +120,7 @@ export interface Event {
   date: string              // YYYY-MM-DD（主要日期，用於列表）
   type: 'regular' | 'special'
   description?: string
+  requirements?: EventRequirement[]
   legacySessionId?: string  // 由舊 session 轉換時帶入
   createdAt: number
   createdBy: string
@@ -195,7 +207,7 @@ export interface SwapRequest {
   createdAt: number
 }
 
-export type ScheduleHistoryAction = 'slot_joined' | 'slot_left'
+export type ScheduleHistoryAction = 'slot_joined' | 'slot_left' | 'event_joined' | 'event_left'
 
 export interface ScheduleHistoryEntry {
   id: string
@@ -203,13 +215,16 @@ export interface ScheduleHistoryEntry {
   userId: string
   displayName: string
   photoURL?: string
-  slotId: string
+  assignmentType?: 'slot' | 'event'
+  slotId?: string
   eventId: string
   roleId: string
+  eventRequirementRoleId?: string
+  eventTitle?: string
   slotTitle?: string
-  slotDate: string
-  startsAt: string
-  endsAt: string
+  slotDate?: string
+  startsAt?: string
+  endsAt?: string
   action: ScheduleHistoryAction
   source: 'self_service'
   createdAt: number

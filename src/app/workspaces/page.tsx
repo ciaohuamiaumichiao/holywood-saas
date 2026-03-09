@@ -36,10 +36,8 @@ type WorkspaceOverviewEntry = {
   id: string
   teamId: string
   teamName: string
-  slotId: string
-  slotDate: string
-  startsAt: string
-  endsAt: string
+  eventId: string
+  eventDate: string
   eventTitle: string
   roleLabel: string
   assignees: Array<{
@@ -58,19 +56,17 @@ type WorkspaceOverviewConflict = {
       entryId: string
       teamId: string
       teamName: string
+      eventDate: string
       eventTitle: string
       roleLabel: string
-      startsAt: string
-      endsAt: string
     },
     {
       entryId: string
       teamId: string
       teamName: string
+      eventDate: string
       eventTitle: string
       roleLabel: string
-      startsAt: string
-      endsAt: string
     },
   ]
 }
@@ -106,12 +102,6 @@ function formatDateTime(ts?: number) {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-function formatTimeRange(startsAt: string, endsAt: string) {
-  const start = startsAt.slice(11, 16)
-  const end = endsAt.slice(11, 16)
-  return `${start}–${end}`
 }
 
 function getTodayDateString() {
@@ -599,7 +589,7 @@ function WorkspacesPageContent() {
               <div style={{ ...panelStyle, marginBottom: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <div>
-                    <label style={labelStyle}>聯合時程起日</label>
+                    <label style={labelStyle}>聯合活動起日</label>
                     <input
                       type="date"
                       value={overviewDateFrom}
@@ -608,7 +598,7 @@ function WorkspacesPageContent() {
                     />
                   </div>
                   <div>
-                    <label style={labelStyle}>聯合時程迄日</label>
+                    <label style={labelStyle}>聯合活動迄日</label>
                     <input
                       type="date"
                       value={overviewDateTo}
@@ -640,8 +630,8 @@ function WorkspacesPageContent() {
                     const draftSharedBrief = sharedBriefDrafts[workspace.id] ?? ''
                     const overview = overviewByWorkspaceId[workspace.id]
                     const entriesByDate = (overview?.entries ?? []).reduce<Record<string, WorkspaceOverviewEntry[]>>((groups, entry) => {
-                      if (!groups[entry.slotDate]) groups[entry.slotDate] = []
-                      groups[entry.slotDate].push(entry)
+                      if (!groups[entry.eventDate]) groups[entry.eventDate] = []
+                      groups[entry.eventDate].push(entry)
                       return groups
                     }, {})
 
@@ -784,9 +774,9 @@ function WorkspacesPageContent() {
                         <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
                             <div>
-                              <label style={labelStyle}>聯合時程總覽</label>
+                              <label style={labelStyle}>聯合活動總覽</label>
                               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--muted)', lineHeight: 1.8 }}>
-                                顯示 {overviewDateFrom} 到 {overviewDateTo} 之間，各 linked teams 已排定的 slot 與跨團隊時間衝突。
+                                顯示 {overviewDateFrom} 到 {overviewDateTo} 之間，各 linked teams 已安排的活動角色，並提醒同一人在不同團隊的同日重複參與。
                               </p>
                             </div>
                             <button
@@ -794,7 +784,7 @@ function WorkspacesPageContent() {
                               disabled={loadingOverviewFor === workspace.id}
                               style={ghostButtonStyle}
                             >
-                              {loadingOverviewFor === workspace.id ? '讀取總覽中...' : overview ? '重新整理聯合時程' : '載入聯合時程'}
+                              {loadingOverviewFor === workspace.id ? '讀取聯合總覽中...' : overview ? '重新整理聯合總覽' : '載入聯合總覽'}
                             </button>
                           </div>
 
@@ -802,10 +792,10 @@ function WorkspacesPageContent() {
                             <>
                               <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
                                 <div style={summaryChipStyle}>
-                                  {overview.entries.length} 個已排時段
+                                  {overview.entries.length} 個活動角色需求
                                 </div>
                                 <div style={summaryChipStyle}>
-                                  {overview.entries.reduce((sum, entry) => sum + entry.assignees.length, 0)} 個已分派人次
+                                  {overview.entries.reduce((sum, entry) => sum + entry.assignees.length, 0)} 個已加入人次
                                 </div>
                                 <div style={{
                                   ...summaryChipStyle,
@@ -813,7 +803,7 @@ function WorkspacesPageContent() {
                                   border: overview.conflicts.length > 0 ? '1px solid rgba(224,85,85,0.25)' : summaryChipStyle.border,
                                   background: overview.conflicts.length > 0 ? 'rgba(224,85,85,0.08)' : summaryChipStyle.background,
                                 }}>
-                                  {overview.conflicts.length} 筆衝突提醒
+                                  {overview.conflicts.length} 筆同日提醒
                                 </div>
                               </div>
 
@@ -826,7 +816,7 @@ function WorkspacesPageContent() {
                                   gap: '0.65rem',
                                 }}>
                                   <p style={{ margin: 0, fontSize: '0.82rem', color: '#f5b0b0' }}>
-                                    同一個人在不同團隊的同時段工作發生重疊，請回各自原團隊協調。
+                                    同一個人在不同團隊的同一天都已加入活動，請回各自原團隊協調安排。
                                   </p>
                                   <div style={{ display: 'grid', gap: '0.55rem' }}>
                                     {overview.conflicts.map((conflict) => (
@@ -837,7 +827,7 @@ function WorkspacesPageContent() {
                                         <div style={{ marginTop: '0.35rem', display: 'grid', gap: '0.35rem' }}>
                                           {conflict.entries.map((entry) => (
                                             <div key={entry.entryId} style={{ fontSize: '0.75rem', color: 'var(--muted)', lineHeight: 1.7 }}>
-                                              {entry.teamName} · {entry.eventTitle} · {entry.roleLabel} · {formatDate(entry.startsAt.slice(0, 10))} {formatTimeRange(entry.startsAt, entry.endsAt)}
+                                              {entry.teamName} · {entry.eventTitle} · {entry.roleLabel} · {formatDate(entry.eventDate)}
                                             </div>
                                           ))}
                                         </div>
@@ -853,15 +843,15 @@ function WorkspacesPageContent() {
                                   fontSize: '0.8rem',
                                   color: 'var(--muted)',
                                 }}>
-                                  目前這段期間沒有偵測到跨團隊的同時段重疊。
+                                  目前這段期間沒有偵測到跨團隊的同日重複參與。
                                 </div>
                               )}
 
                               {Object.keys(entriesByDate).length > 0 ? (
                                 <div style={{ display: 'grid', gap: '0.85rem' }}>
-                                  {Object.entries(entriesByDate).map(([slotDate, dateEntries]) => (
-                                    <div key={slotDate} style={{ display: 'grid', gap: '0.55rem' }}>
-                                      <div style={{ fontSize: '0.8rem', color: 'var(--gold)' }}>{formatDate(slotDate)}</div>
+                                  {Object.entries(entriesByDate).map(([eventDate, dateEntries]) => (
+                                    <div key={eventDate} style={{ display: 'grid', gap: '0.55rem' }}>
+                                      <div style={{ fontSize: '0.8rem', color: 'var(--gold)' }}>{formatDate(eventDate)}</div>
                                       {dateEntries.map((entry) => (
                                         <div key={entry.id} style={{
                                           padding: '0.8rem 0.9rem',
@@ -876,9 +866,7 @@ function WorkspacesPageContent() {
                                               <span style={{ fontSize: '0.82rem', color: 'var(--warm-white)' }}>{entry.eventTitle}</span>
                                               <span style={{ fontSize: '0.76rem', color: 'var(--muted)' }}>{entry.roleLabel}</span>
                                             </div>
-                                            <span style={{ fontSize: '0.76rem', color: 'var(--muted)' }}>
-                                              {formatTimeRange(entry.startsAt, entry.endsAt)}
-                                            </span>
+                                            <span style={{ fontSize: '0.76rem', color: 'var(--muted)' }}>活動需求</span>
                                           </div>
                                           <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
                                             {entry.assignees.length > 0 ? entry.assignees.map((assignee) => {
@@ -914,7 +902,7 @@ function WorkspacesPageContent() {
                                   fontSize: '0.8rem',
                                   color: 'var(--muted)',
                                 }}>
-                                  這段期間內還沒有任何已排定的時段。
+                                  這段期間內還沒有任何已安排的活動角色。
                                 </div>
                               )}
                             </>

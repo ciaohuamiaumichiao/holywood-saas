@@ -126,7 +126,6 @@ export default function Navbar() {
               <NavLink href="/schedule" active={pathname === '/schedule'}>排班表</NavLink>
               <NavLink href="/my-schedule" active={pathname === '/my-schedule'}>我的排班</NavLink>
               <NavLink href="/year-review" active={pathname === '/year-review'}>年度回顧</NavLink>
-              <NavLink href="/availability" active={pathname === '/availability'}>可參與日期</NavLink>
               <NavLink href="/teams" active={pathname === '/teams'}>我的團隊</NavLink>
               <NavLink href="/workspaces" active={pathname === '/workspaces'}>聯合群組</NavLink>
               <NavLink href="/guide" active={pathname === '/guide'}>說明</NavLink>
@@ -368,7 +367,6 @@ export default function Navbar() {
           <MobileNavLink href="/schedule" active={pathname === '/schedule'}>排班表</MobileNavLink>
           <MobileNavLink href="/my-schedule" active={pathname === '/my-schedule'}>我的排班</MobileNavLink>
           <MobileNavLink href="/year-review" active={pathname === '/year-review'}>年度回顧</MobileNavLink>
-          <MobileNavLink href="/availability" active={pathname === '/availability'}>可參與日期</MobileNavLink>
           <MobileNavLink href="/teams" active={pathname === '/teams'}>我的團隊</MobileNavLink>
           <MobileNavLink href="/workspaces" active={pathname === '/workspaces'}>聯合群組</MobileNavLink>
           <MobileNavLink href="/guide" active={pathname === '/guide'}>說明</MobileNavLink>

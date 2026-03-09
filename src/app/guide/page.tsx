@@ -195,14 +195,14 @@ export default function GuidePage() {
           <section style={sectionStyle}>
             <div style={sectionNumberStyle}>07</div>
             <div>
-              <h2 style={h2Style}>共享說明、查看聯合時程總覽與衝突</h2>
+              <h2 style={h2Style}>共享說明、查看聯合活動總覽與提醒</h2>
               <p>
                 聯合群組頁面可維護
                 <strong style={{ color: 'var(--warm-white)' }}> 共享說明 </strong>
                 ，把雙方都要知道的現場 brief、分工、流程與注意事項集中管理。
               </p>
               <p style={{ marginTop: '0.75rem' }}>
-                聯合群組也會彙整各團隊的時程，讓你看到同一個人在不同團隊是否剛好被排到重疊時段。這個頁面是
+                聯合群組也會彙整各團隊的活動角色，讓你看到同一個人在不同團隊是否剛好在同一天都已加入活動。這些是協調提醒，不是跨團隊直接改派。這個頁面是
                 <strong style={{ color: 'var(--warm-white)' }}> 協調用總覽 </strong>
                 ，不是跨團隊直接改派班表的地方。
               </p>
@@ -211,12 +211,6 @@ export default function GuidePage() {
                 {' '}
                 <Link href="/schedule" style={inlineLinkStyle}>
                   排班表
-                </Link>
-                {' '}
-                與
-                {' '}
-                <Link href="/availability" style={inlineLinkStyle}>
-                  可參與日期
                 </Link>
                 {' '}
                 頁面操作。
@@ -237,7 +231,7 @@ export default function GuidePage() {
                   年度回顧
                 </Link>
                 {' '}
-                ，可查看這一年團隊累積了多少排班、總服務時數、成功換班數，以及每個成員的主要崗位分布。
+                ，可查看這一年團隊累積了多少排班、報名動作、成功換班數，以及每個成員的主要崗位分布。
               </p>
               <p style={{ marginTop: '0.75rem' }}>
                 系統會把平時的參與、取消、換班與支援軌跡整理成積分與 badge，例如出勤之星、多面手、救援王、穩定同行等，方便你在年末回顧時看見每個人的投入。
@@ -258,7 +252,7 @@ export default function GuidePage() {
               <ul style={{ paddingLeft: '1.4rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 <li><strong style={{ color: 'var(--warm-white)' }}>Owner</strong>：建立團隊、管理成員、調整權限、建立聯合群組。</li>
                 <li><strong style={{ color: 'var(--warm-white)' }}>Admin</strong>：協助管理排班、邀請成員、加入或維護聯合群組。</li>
-                <li><strong style={{ color: 'var(--warm-white)' }}>Member</strong>：查看排班、登記可參與日期、在已加入的團隊或聯合群組中閱讀共享資訊。</li>
+                <li><strong style={{ color: 'var(--warm-white)' }}>Member</strong>：查看排班、加入活動角色、在已加入的團隊或聯合群組中閱讀共享資訊。</li>
               </ul>
               <p style={{ marginTop: '0.75rem', color: 'var(--muted)', fontSize: '0.82rem' }}>
                 角色是 team scope。同一個人在不同 team 裡可以有不同權限。

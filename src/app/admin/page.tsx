@@ -7,8 +7,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
 import {
   subscribeToEvents,
-  subscribeTeamSlots,
   createEvent,
+  updateEvent,
 } from '@/lib/firestore'
 import {
   subscribeToTeamMembers,
@@ -18,7 +18,8 @@ import {
   updateTeam,
 } from '@/lib/firestore-teams'
 import { postJsonWithAuth } from '@/lib/authed-post'
-import { Event, RoleConfig, Slot, TeamMember, Invitation } from '@/lib/types'
+import { buildEventRequirementsFromCounts, requirementCountMap } from '@/lib/event-requirements'
+import { Event, RoleConfig, TeamMember, Invitation } from '@/lib/types'
 
 type Tab = 'schedule' | 'members' | 'settings'
 
@@ -38,14 +39,16 @@ export default function AdminPage() {
 
   // ─── Events / Slots ───────────────────────────────────────────────────────
   const [events, setEvents] = useState<Event[]>([])
-  const [slots, setSlots] = useState<Slot[]>([])
   const [newEvent, setNewEvent] = useState({
     date: '',
     title: '',
     type: 'regular' as 'regular' | 'special',
     description: '',
   })
+  const [newEventRoleCounts, setNewEventRoleCounts] = useState<Record<string, string>>({})
+  const [eventRequirementDrafts, setEventRequirementDrafts] = useState<Record<string, Record<string, string>>>({})
   const [savingEvent, setSavingEvent] = useState(false)
+  const [savingEventRequirements, setSavingEventRequirements] = useState<string | null>(null)
   const [scheduleFeedback, setScheduleFeedback] = useState<ScheduleFeedback | null>(null)
 
   // ─── Members ──────────────────────────────────────────────────────────────
@@ -72,6 +75,7 @@ export default function AdminPage() {
       : activeTeamSettings
   const teamName = currentSettings.teamName
   const roles = currentSettings.roles
+  const roleLabel = (roleId: string) => roles.find((role) => role.id === roleId)?.label || roleId
 
   function updateSettingsDraft(
     updater: (base: { teamId: string | null; teamName: string; roles: RoleConfig[] }) => {
@@ -93,18 +97,14 @@ export default function AdminPage() {
     }
   }, [activeMember, isAdmin, router])
 
-  // ─── Subscribe events / slots ─────────────────────────────────────────────
+  // ─── Subscribe events ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!activeTeamId) return
     const unsubEvents = subscribeToEvents(activeTeamId, (data) => {
       setEvents(data.sort((a, b) => a.date.localeCompare(b.date)))
     })
-    const unsubSlots = subscribeTeamSlots(activeTeamId, (data) => {
-      setSlots(data.sort((a, b) => a.slotDate.localeCompare(b.slotDate) || a.startsAt.localeCompare(b.startsAt)))
-    })
     return () => {
       unsubEvents?.()
-      unsubSlots?.()
     }
   }, [activeTeamId])
 
@@ -134,6 +134,12 @@ export default function AdminPage() {
       return
     }
 
+    const { requirements, error } = buildEventRequirementsFromCounts(roles, newEventRoleCounts)
+    if (error) {
+      setScheduleFeedback({ type: 'error', text: error })
+      return
+    }
+
     setSavingEvent(true)
     setScheduleFeedback(null)
     try {
@@ -141,6 +147,7 @@ export default function AdminPage() {
         ...newEvent,
         title,
         description: newEvent.description.trim(),
+        requirements,
         createdBy: user.uid,
       })
       const createdEvent: Event = {
@@ -150,6 +157,7 @@ export default function AdminPage() {
         date: newEvent.date,
         type: newEvent.type,
         description: newEvent.description.trim(),
+        requirements,
         createdAt: Date.now(),
         createdBy: user.uid,
       }
@@ -157,9 +165,12 @@ export default function AdminPage() {
         [...prev.filter((event) => event.id !== createdEvent.id), createdEvent].sort((a, b) => a.date.localeCompare(b.date))
       )
       setNewEvent({ date: '', title: '', type: 'regular', description: '' })
+      setNewEventRoleCounts({})
       setScheduleFeedback({
         type: 'success',
-        text: `已建立活動「${title}」。之後大家的排班與參與資料會累積到年度回顧。`,
+        text: requirements.length > 0
+          ? `已建立活動「${title}」，並設定 ${requirements.length} 個角色需求。`
+          : `已建立活動「${title}」。之後大家的排班與參與資料會累積到年度回顧。`,
       })
     } catch (error) {
       setScheduleFeedback({
@@ -168,6 +179,56 @@ export default function AdminPage() {
       })
     } finally {
       setSavingEvent(false)
+    }
+  }
+
+  function handleNewEventRoleCountChange(roleId: string, value: string) {
+    setNewEventRoleCounts((prev) => ({ ...prev, [roleId]: value }))
+  }
+
+  function handleEventRequirementDraftChange(eventId: string, roleId: string, value: string) {
+    setEventRequirementDrafts((prev) => ({
+      ...prev,
+      [eventId]: {
+        ...(prev[eventId] ?? {}),
+        [roleId]: value,
+      },
+    }))
+  }
+
+  async function handleSaveEventRequirements(event: Event) {
+    if (!activeTeamId) return
+
+    const draft = eventRequirementDrafts[event.id] ?? requirementCountMap(event.requirements)
+    const { requirements, error } = buildEventRequirementsFromCounts(roles, draft, event.requirements)
+    if (error) {
+      setScheduleFeedback({ type: 'error', text: error })
+      return
+    }
+
+    setSavingEventRequirements(event.id)
+    setScheduleFeedback(null)
+    try {
+      await updateEvent(activeTeamId, event.id, { requirements })
+      setEvents((prev) =>
+        prev.map((item) => (item.id === event.id ? { ...item, requirements } : item))
+      )
+      setEventRequirementDrafts((prev) => {
+        const next = { ...prev }
+        delete next[event.id]
+        return next
+      })
+      setScheduleFeedback({
+        type: 'success',
+        text: `已更新「${event.title}」的角色需求。`,
+      })
+    } catch (error) {
+      setScheduleFeedback({
+        type: 'error',
+        text: error instanceof Error ? error.message : '更新活動需求失敗，請稍後再試。',
+      })
+    } finally {
+      setSavingEventRequirements(null)
     }
   }
 
@@ -244,16 +305,6 @@ export default function AdminPage() {
     setSettingsSaved(true)
     setTimeout(() => setSettingsSaved(false), 2000)
   }
-
-  const slotsByEvent = useMemo(() => {
-    const grouped: Record<string, Slot[]> = {}
-    slots.forEach(s => {
-      if (!grouped[s.eventId]) grouped[s.eventId] = []
-      grouped[s.eventId].push(s)
-    })
-    Object.values(grouped).forEach(list => list.sort((a, b) => a.slotDate.localeCompare(b.slotDate) || a.startsAt.localeCompare(b.startsAt)))
-    return grouped
-  }, [slots])
 
   // ─── Render ───────────────────────────────────────────────────────────────
   if (!activeMember) {
@@ -347,6 +398,31 @@ export default function AdminPage() {
                   <label style={labelStyle}>說明（選填）</label>
                   <textarea rows={2} value={newEvent.description} onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })} style={{ ...inputStyle, resize: 'vertical' }} />
                 </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={labelStyle}>這次活動需要哪些角色？</label>
+                  <p style={{ color: 'var(--muted)', fontSize: '0.78rem', margin: '0 0 0.8rem' }}>
+                    直接填寫每個角色需要幾位。`0` 代表這次活動不需要這個角色，適合沒有固定時段、只想先知道這次會有哪些人出席的場景。
+                  </p>
+                  {roles.length === 0 ? (
+                    <div style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>請先到團隊設定建立角色。</div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+                      {roles.map((role) => (
+                        <label key={role.id} style={{ border: '1px solid var(--dark-border)', borderRadius: 8, padding: '0.75rem 0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.02)' }}>
+                          <span style={{ color: 'var(--warm-white)', fontSize: '0.84rem' }}>{role.label}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            inputMode="numeric"
+                            value={newEventRoleCounts[role.id] ?? ''}
+                            onChange={(event) => handleNewEventRoleCountChange(role.id, event.target.value)}
+                            style={{ ...inputStyle, width: 72, textAlign: 'center', padding: '0.4rem 0.5rem' }}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <button
                 onClick={handleCreateEvent}
@@ -370,17 +446,28 @@ export default function AdminPage() {
             <div style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', borderRadius: 12, padding: '1.4rem' }}>
               <h2 style={{ color: 'var(--warm-white)', fontSize: '1.05rem', fontWeight: 600, margin: 0 }}>活動管理說明</h2>
               <p style={{ color: 'var(--muted)', fontSize: '0.84rem', margin: '0.55rem 0 0' }}>
-                管理頁現在先聚焦在活動、成員與團隊設定。排班參與、取消與換班等動作會累積到「年度回顧」，方便你在年末回看每位成員的參與次數、主力崗位與支援軌跡。
+                管理頁現在先聚焦在活動、角色需求、成員與團隊設定。若是影視、志工、偏鄉教學或臨時專案這種不一定要先切細時段的場景，直接用活動設定「這次主教老師 1 位、助教老師 2 位」就可以開始排人。排班參與、取消與換班等動作都會累積到「年度回顧」。
               </p>
             </div>
 
             {/* Existing events */}
             <div style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', borderRadius: 12, padding: '1.4rem' }}>
-              <h2 style={{ color: 'var(--warm-white)', fontSize: '1.05rem', fontWeight: 600, marginBottom: '1rem' }}>所有活動 / 既有排班資料</h2>
+              <h2 style={{ color: 'var(--warm-white)', fontSize: '1.05rem', fontWeight: 600, marginBottom: '1rem' }}>所有活動 / 角色需求</h2>
               {events.length === 0 && <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>尚無活動</p>}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 {events.map(ev => {
-                  const evSlots = slotsByEvent[ev.id] || []
+                  const evRequirements = [...(ev.requirements ?? [])]
+                    .filter((requirement) => requirement.capacity > 0)
+                    .sort((left, right) => {
+                      const leftOrder = roles.find((role) => role.id === left.roleId)?.order ?? Number.MAX_SAFE_INTEGER
+                      const rightOrder = roles.find((role) => role.id === right.roleId)?.order ?? Number.MAX_SAFE_INTEGER
+                      return leftOrder - rightOrder
+                    })
+                  const requirementCounts = {
+                    ...Object.fromEntries(roles.map((role) => [role.id, '0'])),
+                    ...requirementCountMap(ev.requirements),
+                    ...(eventRequirementDrafts[ev.id] ?? {}),
+                  }
                   return (
                     <div key={ev.id} style={{ border: '1px solid var(--dark-border)', borderRadius: 10, padding: '1rem 1.1rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
@@ -391,34 +478,78 @@ export default function AdminPage() {
                             {ev.type === 'special' ? '特別' : '一般'}
                           </span>
                         </div>
-                        <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>{evSlots.length} 時段</span>
+                        <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>{evRequirements.length} 個角色需求</span>
                       </div>
                       {ev.description && (
                         <div style={{ color: 'var(--muted)', fontSize: '0.82rem', marginBottom: '0.5rem' }}>{ev.description}</div>
                       )}
-                      {evSlots.length === 0 && <p style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: 0 }}>目前尚無既有排班資料</p>}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                        {evSlots.map(slot => {
-                          const assignees = Object.values(slot.assignments || {})
-                          return (
-                            <div key={slot.id} style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '0.6rem', padding: '0.55rem 0.7rem', borderRadius: 8, border: '1px solid var(--dark-border)', background: 'rgba(255,255,255,0.02)' }}>
-                              <div style={{ color: 'var(--warm-white)', fontSize: '0.88rem', fontWeight: 600 }}>
-                                {slot.slotDate} {slot.startsAt.slice(11, 16)}–{slot.endsAt.slice(11, 16)}
-                              </div>
-                              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>{roles.find(r => r.id === slot.roleId)?.label || slot.roleId}</span>
-                                <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>名額 {assignees.length}/{slot.capacity}</span>
-                                <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-                                  {assignees.map(a => (
-                                    <span key={a.userId} style={{ color: 'var(--warm-white)', fontSize: '0.8rem', padding: '0.15rem 0.45rem', borderRadius: 6, border: '1px solid var(--dark-border)' }}>{a.displayName}</span>
-                                  ))}
-                                  {assignees.length === 0 && <span style={{ color: 'var(--muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>空缺</span>}
+                      {evRequirements.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginBottom: '0.75rem' }}>
+                          {evRequirements.map((requirement) => {
+                            const assignees = Object.values(requirement.assignments || {})
+                            return (
+                              <div key={`${ev.id}-${requirement.roleId}`} style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '0.6rem', padding: '0.55rem 0.7rem', borderRadius: 8, border: '1px solid var(--dark-border)', background: 'rgba(255,255,255,0.02)' }}>
+                                <div style={{ color: 'var(--warm-white)', fontSize: '0.88rem', fontWeight: 600 }}>
+                                  {roleLabel(requirement.roleId)}
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                  <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>名額 {assignees.length}/{requirement.capacity}</span>
+                                  <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                    {assignees.map((assignment) => (
+                                      <span key={assignment.userId} style={{ color: 'var(--warm-white)', fontSize: '0.8rem', padding: '0.15rem 0.45rem', borderRadius: 6, border: '1px solid var(--dark-border)' }}>
+                                        {assignment.displayName}
+                                      </span>
+                                    ))}
+                                    {assignees.length === 0 && <span style={{ color: 'var(--muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>尚無報名</span>}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          )
-                        })}
-                      </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                      {evRequirements.length === 0 && (
+                        <p style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: 0 }}>目前尚未設定活動角色需求</p>
+                      )}
+                      <details style={{ marginTop: evRequirements.length > 0 ? 0 : '0.75rem' }}>
+                        <summary style={{ color: 'var(--gold)', cursor: 'pointer', fontSize: '0.82rem', marginBottom: '0.7rem' }}>
+                          設定這次活動的角色需求
+                        </summary>
+                        <p style={{ color: 'var(--muted)', fontSize: '0.78rem', margin: '0 0 0.8rem' }}>
+                          活動層需求適合沒有固定時段、只想先知道誰會出席的場景。填 `0` 代表這次活動不需要該角色。系統現在會以這組角色需求作為唯一主流程，避免活動與 slot 雙軌並行造成不穩定。
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem', marginBottom: '0.85rem' }}>
+                          {roles.map((role) => (
+                            <label key={`${ev.id}-${role.id}`} style={{ border: '1px solid var(--dark-border)', borderRadius: 8, padding: '0.75rem 0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.02)' }}>
+                              <span style={{ color: 'var(--warm-white)', fontSize: '0.84rem' }}>{role.label}</span>
+                              <input
+                                type="number"
+                                min={0}
+                                inputMode="numeric"
+                                value={requirementCounts[role.id] ?? '0'}
+                                onChange={(event) => handleEventRequirementDraftChange(ev.id, role.id, event.target.value)}
+                                style={{ ...inputStyle, width: 72, textAlign: 'center', padding: '0.4rem 0.5rem' }}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => handleSaveEventRequirements(ev)}
+                          disabled={savingEventRequirements === ev.id}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            background: 'var(--gold)',
+                            color: 'var(--black)',
+                            border: 'none',
+                            borderRadius: 8,
+                            fontWeight: 700,
+                            cursor: savingEventRequirements === ev.id ? 'wait' : 'pointer',
+                            opacity: savingEventRequirements === ev.id ? 0.7 : 1,
+                          }}
+                        >
+                          {savingEventRequirements === ev.id ? '儲存中…' : '儲存角色需求'}
+                        </button>
+                      </details>
                     </div>
                   )
                 })}

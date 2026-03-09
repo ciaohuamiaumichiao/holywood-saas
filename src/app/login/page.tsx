@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
@@ -70,19 +71,27 @@ export default function LoginPage() {
         <div style={{
           fontFamily: 'Bebas Neue, sans-serif',
           fontSize: '0.85rem',
-          letterSpacing: '0.3em',
+          letterSpacing: '0.18em',
           color: 'var(--muted)',
-          marginBottom: '3rem',
+          marginBottom: '0.8rem',
         }}>
-          影視排班平台
+          跨組織、多角色、短期任務型人力協作平台
         </div>
+        <p style={{
+          fontSize: '0.76rem',
+          color: 'var(--muted)',
+          lineHeight: 1.8,
+          margin: '0 0 2.2rem',
+        }}>
+          先建立活動，再讓成員直接加入活動角色，並把平時的參與、取消與支援軌跡累積成年度回顧。
+        </p>
 
         {/* Features */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '3rem', textAlign: 'left' }}>
           {[
-            { icon: '◈', title: '多團隊管理', desc: '一個帳號管理多個服事團隊' },
-            { icon: '◉', title: '崗位自訂', desc: '依團隊需求彈性設定崗位' },
-            { icon: '◎', title: '邀請連結', desc: '一鍵邀請新成員加入' },
+            { icon: '◈', title: '多團隊協作', desc: '同一個帳號可建立自己的團隊，也能加入別人的團隊' },
+            { icon: '◉', title: '活動角色排班', desc: '直接以活動需求安排主責、助教或其他角色名額' },
+            { icon: '◎', title: '年度回顧', desc: '平時的參與、取消與換班會自然累積成量化資料' },
           ].map(f => (
             <div key={f.title} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
               <span style={{ color: 'var(--gold)', fontSize: '1rem', marginTop: '0.1rem', flexShrink: 0 }}>{f.icon}</span>
@@ -179,25 +188,38 @@ export default function LoginPage() {
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => { void signIn() }}
-            style={{
-              width: '100%',
-              background: 'var(--gold)',
-              color: 'var(--black)',
-              border: 'none',
-              padding: '1rem',
-              fontFamily: 'Bebas Neue, sans-serif',
-              fontSize: '1rem',
-              letterSpacing: '0.2em',
-              cursor: 'pointer',
-              transition: 'opacity 0.2s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
-          >
-            用 Google 登入
-          </button>
+          <>
+            <button
+              onClick={() => { void signIn() }}
+              style={{
+                width: '100%',
+                background: 'var(--gold)',
+                color: 'var(--black)',
+                border: 'none',
+                padding: '1rem',
+                fontFamily: 'Bebas Neue, sans-serif',
+                fontSize: '1rem',
+                letterSpacing: '0.2em',
+                cursor: 'pointer',
+                transition: 'opacity 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+            >
+              用 Google 登入
+            </button>
+            <p style={{ fontSize: '0.74rem', color: 'var(--muted)', marginTop: '0.75rem', lineHeight: 1.7 }}>
+              登入後，若你已加入團隊會直接進入排班表；若還沒有團隊，系統會引導你建立第一個團隊。
+            </p>
+            <div style={{ marginTop: '0.6rem' }}>
+              <Link
+                href="/landing"
+                style={{ fontSize: '0.74rem', color: 'var(--gold)', textDecoration: 'none' }}
+              >
+                先看功能介紹
+              </Link>
+            </div>
+          </>
         )}
 
         {(authError || (!user && teamsError)) && (
@@ -207,7 +229,7 @@ export default function LoginPage() {
         )}
 
         <p style={{ fontSize: '0.7rem', color: 'var(--muted)', marginTop: '1.5rem', letterSpacing: '0.05em' }}>
-          v1.0 · SaaS 多租戶版
+          v1.0 · 活動協作版
         </p>
       </div>
     </main>

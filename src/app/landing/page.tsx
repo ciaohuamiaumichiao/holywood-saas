@@ -115,7 +115,7 @@ export default function LandingPage() {
           {[
             { num: '30秒', label: '建立第一個團隊' },
             { num: '年度回顧', label: '累積參與與支援軌跡' },
-            { num: '跨團隊', label: '聯合總覽看衝突' },
+            { num: '跨團隊', label: '聯合總覽看提醒' },
           ].map((stat) => (
             <div key={stat.label} style={{ background: 'var(--dark-surface)', padding: '2rem', textAlign: 'center' }}>
               <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.5rem', letterSpacing: '0.1em', color: 'var(--gold)' }}>{stat.num}</div>
@@ -216,13 +216,8 @@ export default function LandingPage() {
         </section>
 
         <section style={{ marginBottom: '7rem' }}>
-          <SectionHeader tag="聯合作業" title="需要跨團隊時，再開聯合群組" desc="A 團隊與 B 團隊不必合併資料，也能在同一個合作空間裡共享分工、聯合時程總覽與共同 brief。" />
+          <SectionHeader tag="聯合作業" title="需要跨團隊時，再開聯合群組" desc="A 團隊與 B 團隊不必合併資料，也能在同一個合作空間裡共享分工、聯合活動總覽與共同 brief。" />
           <MockWorkspace />
-        </section>
-
-        <section style={{ marginBottom: '7rem' }}>
-          <SectionHeader tag="成員自主登記" title="可參與日期一鍵勾選" desc="成員可先登記自己可參與的活動時段，管理者更容易安排人力，之後也能在年度回顧裡看見長期參與軌跡。" />
-          <MockAvailability />
         </section>
 
         <section id="how" style={{ marginBottom: '7rem' }}>
@@ -342,8 +337,18 @@ function MockNavbar({ active }: { active: string }) {
 }
 
 function MockSchedule() {
-  const roles = ['導播', 'AD', '攝影師 1', '攝影師 2', '網路直播', '平面攝影']
-  const assigned: Record<string, string> = { '導播': '王大明', '攝影師 1': '林小花', '網路直播': '陳志遠' }
+  const roles = [
+    { label: '導播', capacity: 1 },
+    { label: 'AD', capacity: 1 },
+    { label: '攝影師', capacity: 2 },
+    { label: '網路直播', capacity: 1 },
+    { label: '平面攝影', capacity: 1 },
+  ]
+  const assigned: Record<string, string[]> = {
+    導播: ['王大明'],
+    攝影師: ['林小花'],
+    網路直播: ['陳志遠'],
+  }
 
   return (
     <div style={{ border: '1px solid var(--dark-border)', background: 'var(--dark-surface)', overflow: 'hidden' }}>
@@ -356,30 +361,31 @@ function MockSchedule() {
               <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.88rem', color: 'var(--warm-white)', letterSpacing: '0.1em' }}>4/5（六）</span>
               <span style={{ fontSize: '0.8rem', color: 'var(--muted)', marginLeft: 8 }}>週六服事</span>
             </div>
-            <span style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>14:00–17:00</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>活動說明：13:30 集合，B1 大堂彩排</span>
           </div>
           {roles.map((role, index) => (
-            <div key={role} style={{
+            <div key={role.label} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '0.4rem 1rem',
               borderBottom: index < roles.length - 1 ? '1px solid rgba(42,42,42,0.5)' : 'none',
             }}>
-              <span style={{ fontSize: '0.7rem', color: 'var(--muted)', width: 76 }}>{role}</span>
-              {assigned[role] ? (
+              <span style={{ fontSize: '0.7rem', color: 'var(--muted)', width: 96 }}>{role.label}</span>
+              {(assigned[role.label] ?? []).length > 0 ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <div style={{ width: 16, height: 16, borderRadius: '50%', background: 'var(--dark-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', color: 'var(--muted)' }}>
-                    {assigned[role][0]}
-                  </div>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--warm-white)' }}>{assigned[role]}</span>
-                  {role !== '導播' && (
-                    <span style={{ fontSize: '0.6rem', color: 'var(--muted)', marginLeft: 4, background: 'rgba(42,42,42,0.8)', padding: '0.1rem 0.35rem' }}>申請換班</span>
-                  )}
+                  {(assigned[role.label] ?? []).map((name) => (
+                    <span key={name} style={{ fontSize: '0.8rem', color: 'var(--warm-white)', padding: '0.12rem 0.4rem', border: '1px solid var(--dark-border)', borderRadius: 6 }}>
+                      {name}
+                    </span>
+                  ))}
+                  <span style={{ fontSize: '0.68rem', color: 'var(--muted)', marginLeft: 4 }}>
+                    {(assigned[role.label] ?? []).length}/{role.capacity} 位
+                  </span>
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--muted)', fontStyle: 'italic' }}>— 空缺 —</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--muted)', fontStyle: 'italic' }}>— 尚缺 {role.capacity} 位 —</span>
                   <button style={{ fontSize: '0.62rem', background: 'rgba(200,164,85,0.08)', border: '1px solid rgba(200,164,85,0.25)', color: 'var(--gold)', padding: '0.15rem 0.45rem', cursor: 'pointer' }}>
-                    報名
+                    加入活動
                   </button>
                 </div>
               )}
@@ -387,7 +393,7 @@ function MockSchedule() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-          {['◈ 點「報名」自主搶位', '⇌ 可對隊友申請換班', '● 即時同步'].map((tip) => (
+          {['◈ 直接加入活動角色', '✎ 說明欄可寫集合與提醒', '● 即時同步'].map((tip) => (
             <span key={tip} style={{ fontSize: '0.68rem', color: 'var(--muted)' }}><span style={{ color: 'var(--gold)' }}>{tip[0]}</span>{tip.slice(1)}</span>
           ))}
         </div>
@@ -491,8 +497,8 @@ function MockWorkspace() {
         <div style={{ border: '1px solid rgba(200,164,85,0.22)', background: 'rgba(200,164,85,0.06)', padding: '0.85rem 0.95rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>聯合時程總覽</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--warm-white)' }}>同一人員在兩個團隊的時段重疊時，系統會標記衝突提醒雙方協調。</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>聯合活動總覽</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--warm-white)' }}>同一人員在兩個團隊的同一天都已加入活動時，系統會標記提醒雙方協調。</div>
             </div>
             <span style={{ fontSize: '0.7rem', color: 'var(--gold)', border: '1px solid rgba(200,164,85,0.28)', padding: '0.25rem 0.55rem' }}>
               衝突 1 筆
@@ -509,55 +515,6 @@ function MockWorkspace() {
             <button style={{ fontSize: '0.68rem', background: 'rgba(200,164,85,0.12)', border: '1px solid rgba(200,164,85,0.3)', color: 'var(--gold)', padding: '0.35rem 0.65rem', cursor: 'pointer' }}>複製</button>
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
-
-function MockAvailability() {
-  const sessions = [
-    { date: '4/5（六）', title: '週六服事', time: '14:00–17:00', checked: true },
-    { date: '4/12（六）', title: '週六服事', time: '14:00–17:00', checked: false },
-    { date: '4/19（六）', title: '週六服事', time: '14:00–17:00', checked: true },
-    { date: '4/26（六）', title: '特別聚會', time: '10:00–13:00', checked: false },
-  ]
-  return (
-    <div style={{ border: '1px solid var(--dark-border)', background: 'var(--dark-surface)', overflow: 'hidden' }}>
-      <MockNavbar active="可參與日期" />
-      <div style={{ padding: '1.25rem 1.5rem' }}>
-        <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', color: 'var(--warm-white)', letterSpacing: '0.12em', marginBottom: '0.5rem' }}>可參與日期</div>
-        <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '1rem', lineHeight: 1.6 }}>請勾選你可以參與的場次，管理員會依此安排位置。勾選後即時儲存。</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          {sessions.map((session) => (
-            <div key={session.date} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '0.8rem 1rem',
-              background: session.checked ? 'rgba(200,164,85,0.06)' : 'var(--dark)',
-              border: `1px solid ${session.checked ? 'rgba(200,164,85,0.4)' : 'var(--dark-border)'}`,
-              cursor: 'pointer',
-            }}>
-              <div>
-                <div style={{ fontSize: '0.82rem', color: session.checked ? 'var(--gold)' : 'var(--warm-white)', marginBottom: '0.1rem' }}>
-                  {session.date}　{session.title}
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>{session.time}</div>
-              </div>
-              <div style={{
-                width: 20, height: 20,
-                border: `1.5px solid ${session.checked ? 'var(--gold)' : 'var(--dark-border)'}`,
-                background: session.checked ? 'var(--gold)' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {session.checked && (
-                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                    <path d="M2 6l3 3 5-5" stroke="var(--black)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-        <p style={{ fontSize: '0.7rem', color: 'var(--muted)', marginTop: '0.75rem' }}>已登記 2 場</p>
       </div>
     </div>
   )
@@ -635,8 +592,8 @@ function MockTeachingPlan() {
 
 const FEATURES = [
   { icon: 'grid', title: '多團隊身份並存', desc: '同一個人可以在 A 團隊是 Owner，在 B 團隊是 Admin 或 Member，也能再建立自己的新團隊。' },
-  { icon: 'link', title: '聯合群組共享資訊', desc: '不同團隊要一起合作時，再建立聯合群組，把合作目的、共同 brief、聯合時程總覽與 partner team 集中在同一頁。' },
-  { icon: 'calendar', title: '年度回顧與量化資料', desc: '平時的排班參與、取消與支援紀錄會自然累積，年底能回看每個人的排班次數、服務時數與主力崗位。' },
+  { icon: 'link', title: '聯合群組共享資訊', desc: '不同團隊要一起合作時，再建立聯合群組，把合作目的、共同 brief、聯合活動總覽與 partner team 集中在同一頁。' },
+  { icon: 'calendar', title: '年度回顧與量化資料', desc: '平時的排班參與、取消與支援紀錄會自然累積，年底能回看每個人的排班次數、主要崗位、換班與活躍月份。' },
   { icon: 'sliders', title: '團隊角色彈性設定', desc: 'Owner、Admin、Member 權限分清楚，崗位與工作角色也能依照據點、現場或專案自由調整。' },
   { icon: 'zap', title: '遊戲化鼓勵參與', desc: '用積分、活躍月份與成就徽章，把平常默默支援的人看見，也讓團隊年末回顧更有溫度。' },
   { icon: 'swap', title: '邀請連結快速擴編', desc: '不論是邀請自己團隊成員，還是拉另一個團隊加入合作，都能用連結快速完成；DEMO 版每帳號最多建立 3 個團隊。' },
@@ -647,7 +604,7 @@ const STEPS = [
   { title: '建立或加入團隊', desc: '建立自己的團隊就自動成為 Owner；若是收到邀請，也能加入別人的團隊成為 Admin 或 Member。DEMO 版每帳號最多建立 3 個團隊。' },
   { title: '先建立活動', desc: '從活動開始管理日常工作，成員之後在排班表上的參與與支援會逐步累積成年度回顧。' },
   { title: '建立聯合群組', desc: '當兩個團隊要一起完成同一場活動或專案時，建立聯合群組並分享合作邀請給 partner team。' },
-  { title: '共享 brief 與年底回顧', desc: '雙方加入後可在合作空間裡查看共享說明與跨團隊衝突；平時累積的排班資料則會在年度回顧中呈現。' },
+  { title: '共享 brief 與年底回顧', desc: '雙方加入後可在合作空間裡查看共享說明與跨團隊提醒；平時累積的排班資料則會在年度回顧中呈現。' },
 ]
 
 function MockYearReview() {
@@ -664,7 +621,7 @@ function MockYearReview() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
           {[
             { label: '總排班次數', value: '42' },
-            { label: '總服務時數', value: '96h' },
+            { label: '報名動作', value: '68' },
             { label: '成功換班', value: '7' },
             { label: '活躍成員', value: '12' },
           ].map((item) => (
@@ -680,7 +637,7 @@ function MockYearReview() {
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: '0.95rem', color: 'var(--warm-white)' }}>林小花</div>
-              <div style={{ fontSize: '0.74rem', color: 'var(--muted)', marginTop: '0.15rem' }}>16 次排班 · 34 小時 · 3 個主力崗位</div>
+              <div style={{ fontSize: '0.74rem', color: 'var(--muted)', marginTop: '0.15rem' }}>16 次排班 · 3 個主力崗位 · 4 個活躍月份</div>
             </div>
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
               {['多面手', '長跑戰將'].map((badge) => (
