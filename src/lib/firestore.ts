@@ -17,7 +17,7 @@ import {
   arrayRemove,
 } from 'firebase/firestore'
 import { db } from './firebase'
-import { Session, SwapRequest, Role, Assignment, Comment, Availability, Event, Slot, SlotAssignment } from './types'
+import { Session, SwapRequest, Role, Assignment, Comment, Availability, Event, Slot, SlotAssignment, ScheduleHistoryEntry } from './types'
 
 // ─── 路徑輔助 ─────────────────────────────────────────────────────────────────
 const sessionsCol = (teamId: string) => collection(db, 'teams', teamId, 'sessions')
@@ -32,6 +32,7 @@ const commentDoc = (teamId: string, sessionId: string, commentId: string) =>
 const swapsCol = (teamId: string) => collection(db, 'teams', teamId, 'swaps')
 const swapDoc = (teamId: string, id: string) => doc(db, 'teams', teamId, 'swaps', id)
 const availCol = (teamId: string) => collection(db, 'teams', teamId, 'availabilities')
+const scheduleHistoryCol = (teamId: string) => collection(db, 'teams', teamId, 'scheduleHistory')
 
 // ─── Sessions ─────────────────────────────────────────────────────────────────
 
@@ -483,6 +484,26 @@ export function subscribeToMyOutgoingSwaps(
   return onSnapshot(
     query(swapsCol(teamId), where('requesterId', '==', userId), where('status', '==', 'pending')),
     snap => callback(snap.docs.map(d => d.data() as SwapRequest))
+  )
+}
+
+export function subscribeToTeamSwaps(
+  teamId: string,
+  callback: (swaps: SwapRequest[]) => void
+): Unsubscribe {
+  return onSnapshot(
+    query(swapsCol(teamId), orderBy('createdAt', 'desc')),
+    snap => callback(snap.docs.map(d => d.data() as SwapRequest))
+  )
+}
+
+export function subscribeToScheduleHistory(
+  teamId: string,
+  callback: (entries: ScheduleHistoryEntry[]) => void
+): Unsubscribe {
+  return onSnapshot(
+    query(scheduleHistoryCol(teamId), orderBy('createdAt', 'desc')),
+    snap => callback(snap.docs.map(d => d.data() as ScheduleHistoryEntry))
   )
 }
 

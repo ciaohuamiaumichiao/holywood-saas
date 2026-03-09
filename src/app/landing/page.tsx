@@ -50,7 +50,7 @@ export default function LandingPage() {
           </p>
           <p style={{ fontSize: '0.9rem', color: 'var(--body-text)', maxWidth: 620, lineHeight: 1.9, marginBottom: '2.5rem' }}>
             建立自己的團隊、邀請成員加入、分派 Owner / Admin / Member 權限。<br />
-            先用活動管理日常工作；只有需要細分班表時，再展開進階時段設定。當不同團隊要一起完成同一場活動或專案時，再開一個聯合群組，集中共享合作目的、現場 brief 與跨團隊協作資訊。
+            先用活動管理日常工作，並把大家的排班與支援軌跡累積成年度回顧。當不同團隊要一起完成同一場活動或專案時，再開一個聯合群組，集中共享合作目的、現場 brief 與跨團隊協作資訊。
           </p>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link href={DEMO_URL} style={{
@@ -484,7 +484,7 @@ const FEATURES = [
 const STEPS = [
   { title: 'Google 登入', desc: '用同一個帳號登入系統，未來可同時加入多個團隊，也能自己建立新的 team。' },
   { title: '建立或加入團隊', desc: '建立自己的團隊就自動成為 Owner；若是收到邀請，也能加入別人的團隊成為 Admin 或 Member。DEMO 版每帳號最多建立 3 個團隊。' },
-  { title: '先建立活動', desc: '從活動開始管理日常工作；只有在需要細分角色、名額與時間時，再展開進階時段設定。' },
+  { title: '先建立活動', desc: '從活動開始管理日常工作，並逐步累積每位成員的排班次數、主力崗位與支援紀錄。' },
   { title: '建立聯合群組', desc: '當兩個團隊要一起完成同一場活動或專案時，建立聯合群組並分享合作邀請給 partner team。' },
   { title: '共享 brief 與查看衝突', desc: '雙方加入後就在同一個合作空間裡維護共享說明，並查看聯合時程總覽與跨團隊人員衝突提示。' },
 ]

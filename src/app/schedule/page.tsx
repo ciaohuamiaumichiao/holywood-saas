@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/context/AuthContext'
 import { useTeam } from '@/context/TeamContext'
-import { subscribeToEvents, subscribeTeamSlots, assignSlot, unassignSlot } from '@/lib/firestore'
+import { subscribeToEvents, subscribeTeamSlots } from '@/lib/firestore'
+import { postJsonWithAuth } from '@/lib/authed-post'
 import { Event, RoleConfig, Slot } from '@/lib/types'
 
 const WEEKDAY_ZH = ['日', '一', '二', '三', '四', '五', '六']
@@ -30,7 +31,7 @@ function formatTimeRange(slot: Slot) {
 
 export default function SchedulePage() {
   const router = useRouter()
-  const { user, loading: authLoading, effectivePhotoURL } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { activeTeam, activeTeamId } = useTeam()
 
   const [events, setEvents] = useState<Event[]>([])
@@ -89,11 +90,10 @@ export default function SchedulePage() {
     setBusy(slot.id)
     setFeedback(null)
     try {
-      const result = await assignSlot(activeTeamId, slot.id, {
-        uid: user.uid,
-        displayName: user.displayName || '',
-        photoURL: effectivePhotoURL || '',
-      })
+      const { result } = await postJsonWithAuth<{ result: 'ok' | 'full' | 'conflict' | 'not_found' }>(
+        '/api/slots/assignment',
+        { teamId: activeTeamId, slotId: slot.id, operation: 'assign' }
+      )
       if (result === 'full') setFeedback({ type: 'error', text: '此時段名額已滿' })
       else if (result === 'conflict') setFeedback({ type: 'error', text: '與你已報名的時段時間重疊' })
       else if (result === 'not_found') setFeedback({ type: 'error', text: '此時段已不存在' })
@@ -108,7 +108,11 @@ export default function SchedulePage() {
     setBusy(slot.id)
     setFeedback(null)
     try {
-      await unassignSlot(activeTeamId, slot.id, user.uid)
+      await postJsonWithAuth('/api/slots/assignment', {
+        teamId: activeTeamId,
+        slotId: slot.id,
+        operation: 'unassign',
+      })
       setFeedback({ type: 'success', text: '已取消報名' })
     } finally {
       setBusy(null)

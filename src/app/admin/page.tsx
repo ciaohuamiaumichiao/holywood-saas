@@ -1,6 +1,6 @@
 'use client'
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useMemo, useState, Fragment } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { useAuth } from '@/context/AuthContext'
@@ -9,7 +9,6 @@ import {
   subscribeToEvents,
   subscribeTeamSlots,
   createEvent,
-  createSlots,
 } from '@/lib/firestore'
 import {
   subscribeToTeamMembers,
@@ -22,16 +21,6 @@ import { postJsonWithAuth } from '@/lib/authed-post'
 import { Event, RoleConfig, Slot, TeamMember, Invitation } from '@/lib/types'
 
 type Tab = 'schedule' | 'members' | 'settings'
-
-type SlotDraft = {
-  eventId: string
-  slotDate: string
-  startTime: string
-  endTime: string
-  roleId: string
-  capacity: number
-  title: string
-}
 
 type ScheduleFeedback = {
   type: 'success' | 'error'
@@ -56,12 +45,8 @@ export default function AdminPage() {
     type: 'regular' as 'regular' | 'special',
     description: '',
   })
-  const [slotDrafts, setSlotDrafts] = useState<SlotDraft[]>([])
   const [savingEvent, setSavingEvent] = useState(false)
-  const [savingSlots, setSavingSlots] = useState(false)
-  const [slotEditorOpen, setSlotEditorOpen] = useState(false)
   const [scheduleFeedback, setScheduleFeedback] = useState<ScheduleFeedback | null>(null)
-  const [preferredSlotSeed, setPreferredSlotSeed] = useState<Pick<SlotDraft, 'eventId' | 'slotDate'> | null>(null)
 
   // ─── Members ──────────────────────────────────────────────────────────────
   const [members, setMembers] = useState<TeamMember[]>([])
@@ -87,48 +72,6 @@ export default function AdminPage() {
       : activeTeamSettings
   const teamName = currentSettings.teamName
   const roles = currentSettings.roles
-
-  function getEventById(eventId: string) {
-    return events.find((event) => event.id === eventId) ?? null
-  }
-
-  const buildSlotDraft = useCallback((seed?: Partial<SlotDraft>): SlotDraft => {
-    const seedEvent =
-      (seed?.eventId && events.find((event) => event.id === seed.eventId)) ||
-      (preferredSlotSeed?.eventId && events.find((event) => event.id === preferredSlotSeed.eventId)) ||
-      events[0] ||
-      null
-
-    return {
-      eventId: seed?.eventId ?? seedEvent?.id ?? preferredSlotSeed?.eventId ?? '',
-      slotDate: seed?.slotDate ?? seedEvent?.date ?? preferredSlotSeed?.slotDate ?? '',
-      startTime: seed?.startTime ?? '',
-      endTime: seed?.endTime ?? '',
-      roleId: seed?.roleId ?? roles[0]?.id ?? '',
-      capacity: seed?.capacity ?? 1,
-      title: seed?.title ?? '',
-    }
-  }, [events, preferredSlotSeed, roles])
-
-  function validateSlotDraft(draft: SlotDraft, index: number) {
-    const row = index + 1
-    const event = getEventById(draft.eventId)
-
-    if (!draft.eventId) return `第 ${row} 列尚未選擇活動`
-    if (!event) return `第 ${row} 列的活動已不存在，請重新選擇`
-    if (!draft.slotDate) return `第 ${row} 列尚未填寫日期`
-    if (!draft.startTime || !draft.endTime) return `第 ${row} 列尚未填完開始與結束時間`
-    if (!draft.roleId) return `第 ${row} 列尚未選擇角色`
-    if (!roles.some((role) => role.id === draft.roleId)) return `第 ${row} 列的角色已不存在，請重新選擇`
-    if (!Number.isInteger(draft.capacity) || draft.capacity < 1) return `第 ${row} 列名額必須是 1 以上的整數`
-
-    const startsAt = Date.parse(`${draft.slotDate}T${draft.startTime}`)
-    const endsAt = Date.parse(`${draft.slotDate}T${draft.endTime}`)
-    if (Number.isNaN(startsAt) || Number.isNaN(endsAt)) return `第 ${row} 列的時間格式不正確`
-    if (startsAt >= endsAt) return `第 ${row} 列的結束時間必須晚於開始時間`
-
-    return null
-  }
 
   function updateSettingsDraft(
     updater: (base: { teamId: string | null; teamName: string; roles: RoleConfig[] }) => {
@@ -164,13 +107,6 @@ export default function AdminPage() {
       unsubSlots?.()
     }
   }, [activeTeamId])
-
-  // ensure there is at least one draft row
-  useEffect(() => {
-    if (slotDrafts.length === 0) {
-      setSlotDrafts([buildSlotDraft()])
-    }
-  }, [buildSlotDraft, events, roles, slotDrafts.length])
 
   // ─── Subscribe members ────────────────────────────────────────────────────
   useEffect(() => {
@@ -220,20 +156,10 @@ export default function AdminPage() {
       setEvents((prev) =>
         [...prev.filter((event) => event.id !== createdEvent.id), createdEvent].sort((a, b) => a.date.localeCompare(b.date))
       )
-      setPreferredSlotSeed({ eventId, slotDate: newEvent.date })
-      setSlotDrafts((prev) => {
-        const hasDraftContent = prev.some((draft) =>
-          Boolean(draft.startTime || draft.endTime || draft.title.trim())
-        )
-        if (slotEditorOpen && !hasDraftContent) {
-          return [buildSlotDraft({ eventId, slotDate: newEvent.date })]
-        }
-        return prev
-      })
       setNewEvent({ date: '', title: '', type: 'regular', description: '' })
       setScheduleFeedback({
         type: 'success',
-        text: `已建立活動「${title}」。如需更細的班表，可展開進階時段設定。`,
+        text: `已建立活動「${title}」。之後大家的排班與參與資料會累積到年度回顧。`,
       })
     } catch (error) {
       setScheduleFeedback({
@@ -242,94 +168,6 @@ export default function AdminPage() {
       })
     } finally {
       setSavingEvent(false)
-    }
-  }
-
-  function updateSlotDraft(index: number, partial: Partial<SlotDraft>) {
-    setSlotDrafts((prev) => {
-      const next = [...prev]
-      next[index] = { ...next[index], ...partial }
-      return next
-    })
-  }
-
-  function addSlotDraft(copyFrom?: SlotDraft) {
-    setSlotDrafts((prev) => {
-      const base = copyFrom || prev[prev.length - 1]
-      if (base) {
-        return [...prev, { ...base, startTime: '', endTime: '' }]
-      }
-      return [...prev, buildSlotDraft()]
-    })
-  }
-
-  function removeSlotDraft(index: number) {
-    setSlotDrafts((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  function handleSlotEventChange(index: number, nextEventId: string) {
-    const currentDraft = slotDrafts[index]
-    const currentEvent = getEventById(currentDraft?.eventId || '')
-    const nextEvent = getEventById(nextEventId)
-    const shouldSyncDate = !currentDraft?.slotDate || (!!currentEvent && currentDraft.slotDate === currentEvent.date)
-
-    updateSlotDraft(index, {
-      eventId: nextEventId,
-      slotDate: shouldSyncDate ? nextEvent?.date || '' : currentDraft.slotDate,
-    })
-
-    if (nextEvent) {
-      setPreferredSlotSeed({ eventId: nextEvent.id, slotDate: nextEvent.date })
-    }
-  }
-
-  async function handleCreateSlots() {
-    if (!activeTeamId || !user) return
-    if (events.length === 0) {
-      setScheduleFeedback({ type: 'error', text: '請先建立至少一個活動，再設定時段。' })
-      return
-    }
-
-    const validationError = slotDrafts.map((draft, index) => validateSlotDraft(draft, index)).find(Boolean)
-    if (validationError) {
-      setScheduleFeedback({ type: 'error', text: validationError })
-      return
-    }
-
-    setSavingSlots(true)
-    setScheduleFeedback(null)
-    try {
-      await createSlots(activeTeamId, slotDrafts.map((draft) => ({
-        eventId: draft.eventId,
-        roleId: draft.roleId,
-        slotDate: draft.slotDate,
-        startsAt: `${draft.slotDate}T${draft.startTime}`,
-        endsAt: `${draft.slotDate}T${draft.endTime}`,
-        capacity: Number(draft.capacity),
-        title: draft.title.trim() || roles.find((role) => role.id === draft.roleId)?.label || '',
-        createdBy: user.uid,
-      })))
-      const resetSeed = slotDrafts[0]
-      setPreferredSlotSeed({ eventId: resetSeed.eventId, slotDate: resetSeed.slotDate })
-      setSlotDrafts([
-        buildSlotDraft({
-          eventId: resetSeed.eventId,
-          slotDate: resetSeed.slotDate,
-          roleId: resetSeed.roleId,
-          title: resetSeed.title.trim(),
-        }),
-      ])
-      setScheduleFeedback({
-        type: 'success',
-        text: `已建立 ${slotDrafts.length} 個時段。`,
-      })
-    } catch (error) {
-      setScheduleFeedback({
-        type: 'error',
-        text: error instanceof Error ? error.message : '建立時段失敗，請稍後再試。',
-      })
-    } finally {
-      setSavingSlots(false)
     }
   }
 
@@ -529,125 +367,16 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {/* Slot batch form */}
             <div style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', borderRadius: 12, padding: '1.4rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                <div>
-                  <h2 style={{ color: 'var(--warm-white)', fontSize: '1.05rem', fontWeight: 600, margin: 0 }}>進階：批次新增時段</h2>
-                  <p style={{ color: 'var(--muted)', fontSize: '0.82rem', margin: '0.45rem 0 0' }}>
-                    先建立活動；只有在需要分班、分角色、分名額時，再展開時段設定。
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSlotEditorOpen((prev) => !prev)}
-                  disabled={events.length === 0}
-                  style={{
-                    ...ghostBtnStyle,
-                    padding: '0.45rem 0.95rem',
-                    opacity: events.length === 0 ? 0.5 : 1,
-                    cursor: events.length === 0 ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {events.length === 0 ? '請先建立活動' : slotEditorOpen ? '收合時段設定' : '展開時段設定'}
-                </button>
-              </div>
-
-              {!slotEditorOpen && events.length > 0 && (
-                <p style={{ color: 'var(--muted)', fontSize: '0.82rem', margin: '1rem 0 0' }}>
-                  若這個活動只需要先公告，不必現在就建立時段。
-                </p>
-              )}
-
-              {slotEditorOpen && (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', marginBottom: '1rem' }}>
-                    <span style={{ color: 'var(--warm-white)', fontSize: '0.88rem', fontWeight: 500 }}>時段設定表</span>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={() => addSlotDraft()} style={{ ...ghostBtnStyle, padding: '0.35rem 0.9rem' }}>+ 一列</button>
-                      {slotDrafts[slotDrafts.length - 1] && (
-                        <button onClick={() => addSlotDraft(slotDrafts[slotDrafts.length - 1])} style={{ ...ghostBtnStyle, padding: '0.35rem 0.9rem' }}>
-                          複製上一列
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr) 80px', gap: '0.6rem', alignItems: 'center' }}>
-                    <span style={columnHeader}>活動</span>
-                    <span style={columnHeader}>日期</span>
-                    <span style={columnHeader}>開始</span>
-                    <span style={columnHeader}>結束</span>
-                    <span style={columnHeader}>角色</span>
-                    <span style={columnHeader}>名額</span>
-                    <span style={columnHeader}>操作</span>
-
-                    {slotDrafts.map((draft, idx) => (
-                      <Fragment key={`draft-${idx}`}>
-                        <select
-                          value={draft.eventId}
-                          onChange={(e) => handleSlotEventChange(idx, e.target.value)}
-                          style={inputStyle}
-                        >
-                          <option value="">選擇活動</option>
-                          {events.map(ev => (
-                            <option key={ev.id} value={ev.id}>{ev.date} · {ev.title}</option>
-                          ))}
-                        </select>
-                        <input key={`date-${idx}`} type="date" value={draft.slotDate} onChange={(e) => updateSlotDraft(idx, { slotDate: e.target.value })} style={inputStyle} />
-                        <input key={`start-${idx}`} type="time" value={draft.startTime} onChange={(e) => updateSlotDraft(idx, { startTime: e.target.value })} style={inputStyle} />
-                        <input key={`end-${idx}`} type="time" value={draft.endTime} onChange={(e) => updateSlotDraft(idx, { endTime: e.target.value })} style={inputStyle} />
-                        <select
-                          value={draft.roleId}
-                          onChange={(e) => updateSlotDraft(idx, { roleId: e.target.value })}
-                          style={inputStyle}
-                        >
-                          <option value="">選擇角色</option>
-                          {roles.map(r => (
-                            <option key={r.id} value={r.id}>{r.label}</option>
-                          ))}
-                        </select>
-                        <input key={`cap-${idx}`} type="number" min={1} value={draft.capacity} onChange={(e) => updateSlotDraft(idx, { capacity: Number(e.target.value) })} style={inputStyle} />
-                        <div key={`ops-${idx}`} style={{ display: 'flex', justifyContent: 'center' }}>
-                          {slotDrafts.length > 1 && (
-                            <button onClick={() => removeSlotDraft(idx)} style={{ ...ghostBtnStyle, padding: '0.25rem 0.6rem' }}>刪除</button>
-                          )}
-                        </div>
-                      </Fragment>
-                    ))}
-                  </div>
-
-                  <p style={{ color: 'var(--muted)', fontSize: '0.78rem', margin: '0.75rem 0 0' }}>
-                    選擇活動後會先帶入活動日期；如果是多日活動，你仍可再手動調整該列日期。
-                  </p>
-
-                  <div style={{ marginTop: '0.8rem' }}>
-                    <label style={labelStyle}>（選填）時段標題：會套用在本表格所有列</label>
-                    <input
-                      type="text"
-                      placeholder="例：志工報到 / 招待"
-                      value={slotDrafts[0]?.title || ''}
-                      onChange={(e) => {
-                        const next = e.target.value
-                        setSlotDrafts((prev) => prev.map(d => ({ ...d, title: next })))
-                      }}
-                      style={{ ...inputStyle, maxWidth: 360 }}
-                    />
-                  </div>
-
-                  <button
-                    onClick={handleCreateSlots}
-                    disabled={savingSlots}
-                    style={{ marginTop: '1rem', padding: '0.6rem 1.3rem', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 8, fontWeight: 700, cursor: savingSlots ? 'wait' : 'pointer' }}
-                  >
-                    {savingSlots ? '建立中…' : '建立時段'}
-                  </button>
-                </>
-              )}
+              <h2 style={{ color: 'var(--warm-white)', fontSize: '1.05rem', fontWeight: 600, margin: 0 }}>活動管理說明</h2>
+              <p style={{ color: 'var(--muted)', fontSize: '0.84rem', margin: '0.55rem 0 0' }}>
+                管理頁現在先聚焦在活動、成員與團隊設定。排班參與、取消與換班等動作會累積到「年度回顧」，方便你在年末回看每位成員的參與次數、主力崗位與支援軌跡。
+              </p>
             </div>
 
             {/* Existing events */}
             <div style={{ background: 'var(--dark-surface)', border: '1px solid var(--dark-border)', borderRadius: 12, padding: '1.4rem' }}>
-              <h2 style={{ color: 'var(--warm-white)', fontSize: '1.05rem', fontWeight: 600, marginBottom: '1rem' }}>所有活動 / 時段</h2>
+              <h2 style={{ color: 'var(--warm-white)', fontSize: '1.05rem', fontWeight: 600, marginBottom: '1rem' }}>所有活動 / 既有排班資料</h2>
               {events.length === 0 && <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>尚無活動</p>}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 {events.map(ev => {
@@ -667,7 +396,7 @@ export default function AdminPage() {
                       {ev.description && (
                         <div style={{ color: 'var(--muted)', fontSize: '0.82rem', marginBottom: '0.5rem' }}>{ev.description}</div>
                       )}
-                      {evSlots.length === 0 && <p style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: 0 }}>尚無時段</p>}
+                      {evSlots.length === 0 && <p style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: 0 }}>目前尚無既有排班資料</p>}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         {evSlots.map(slot => {
                           const assignees = Object.values(slot.assignments || {})
@@ -971,11 +700,4 @@ const ghostBtnStyle: React.CSSProperties = {
   color: 'var(--muted)',
   fontSize: '0.82rem',
   cursor: 'pointer',
-}
-
-const columnHeader: React.CSSProperties = {
-  color: 'var(--muted)',
-  fontSize: '0.78rem',
-  letterSpacing: '0.05em',
-  paddingBottom: '0.2rem',
 }

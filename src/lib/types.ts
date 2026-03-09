@@ -194,3 +194,23 @@ export interface SwapRequest {
   status: SwapStatus
   createdAt: number
 }
+
+export type ScheduleHistoryAction = 'slot_joined' | 'slot_left'
+
+export interface ScheduleHistoryEntry {
+  id: string
+  teamId: string
+  userId: string
+  displayName: string
+  photoURL?: string
+  slotId: string
+  eventId: string
+  roleId: string
+  slotTitle?: string
+  slotDate: string
+  startsAt: string
+  endsAt: string
+  action: ScheduleHistoryAction
+  source: 'self_service'
+  createdAt: number
+}

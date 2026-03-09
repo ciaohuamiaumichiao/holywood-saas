@@ -117,6 +117,12 @@ service cloud.firestore {
         allow update, delete: if isTeamAdmin(teamId);
       }
 
+      // Schedule history（只讀，透過 API route 寫入）
+      match /scheduleHistory/{entryId} {
+        allow read: if isTeamMember(teamId);
+        allow write: if false;
+      }
+
       // Audit Logs（只讀）
       match /auditLogs/{logId} {
         allow read: if isTeamAdmin(teamId);
