@@ -36,7 +36,7 @@ export default function GuidePage() {
           使用說明
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '1rem', lineHeight: 1.8 }}>
-          HOLYWOOD 的核心流程是：先管理自己的團隊與活動，再在必要時把不同團隊拉進聯合群組協作。
+          HOLYWOOD 的核心流程是：先管理自己的團隊與活動，再把平時的排班與支援軌跡累積成年度回顧；必要時再把不同團隊拉進聯合群組協作。
         </p>
         <div style={{
           marginBottom: '3rem',
@@ -118,7 +118,7 @@ export default function GuidePage() {
           <section style={sectionStyle}>
             <div style={sectionNumberStyle}>03</div>
             <div>
-              <h2 style={h2Style}>先建立活動，必要時再展開時段</h2>
+              <h2 style={h2Style}>先建立活動，讓排班歷程自然累積</h2>
               <p>
                 建議先到
                 {' '}
@@ -126,10 +126,10 @@ export default function GuidePage() {
                   管理後台
                 </Link>
                 {' '}
-                建立活動。活動是主流程，方便先把日期、標題與說明定義清楚。
+                建立活動。活動是主流程，方便先把日期、標題與說明定義清楚，之後成員就能在排班表上參與與支援。
               </p>
               <p style={{ marginTop: '0.75rem' }}>
-                建立活動後，後續成員在排班表上的參與、取消與換班紀錄，會逐步累積到年度回顧。管理頁目前先聚焦在活動、成員與團隊設定。
+                建立活動後，後續成員在排班表上的參與、取消與換班紀錄，會逐步累積到年度回顧。管理頁目前先聚焦在活動、成員與團隊設定，不再把流程推向較重的進階配置。
               </p>
             </div>
           </section>
@@ -208,6 +208,30 @@ export default function GuidePage() {
 
           <section style={sectionStyle}>
             <div style={sectionNumberStyle}>07</div>
+            <div>
+              <h2 style={h2Style}>年度回顧與遊戲化資料</h2>
+              <p>
+                前往
+                {' '}
+                <Link href="/year-review" style={inlineLinkStyle}>
+                  年度回顧
+                </Link>
+                {' '}
+                ，可查看這一年團隊累積了多少排班、總服務時數、成功換班數，以及每個成員的主要崗位分布。
+              </p>
+              <p style={{ marginTop: '0.75rem' }}>
+                系統會把平時的參與、取消、換班與支援軌跡整理成積分與 badge，例如出勤之星、多面手、救援王、穩定同行等，方便你在年末回顧時看見每個人的投入。
+              </p>
+              <p style={{ marginTop: '0.75rem', color: 'var(--muted)', fontSize: '0.82rem' }}>
+                舊的排班資料會納入年度總量統計；新的報名與取消動作則會開始累積更完整的歷程時間線。
+              </p>
+            </div>
+          </section>
+
+          <div style={dividerStyle} />
+
+          <section style={sectionStyle}>
+            <div style={sectionNumberStyle}>08</div>
             <div>
               <h2 style={h2Style}>角色與管理權限</h2>
               <p>每個 team 的角色分成三種：</p>

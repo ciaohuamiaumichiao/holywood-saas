@@ -46,11 +46,11 @@ export default function LandingPage() {
             HOLY<span style={{ color: 'var(--gold)' }}>WOOD</span>
           </h1>
           <p style={{ fontSize: 'clamp(1rem, 2.5vw, 1.3rem)', color: 'var(--muted)', letterSpacing: '0.15em', fontFamily: 'Bebas Neue, sans-serif', marginBottom: '0.8rem' }}>
-            一個帳號管理多個團隊，必要時再把不同團隊拉進同一個聯合群組
+            一個帳號管理多個團隊，累積排班歷程，必要時再把不同團隊拉進同一個聯合群組
           </p>
           <p style={{ fontSize: '0.9rem', color: 'var(--body-text)', maxWidth: 620, lineHeight: 1.9, marginBottom: '2.5rem' }}>
             建立自己的團隊、邀請成員加入、分派 Owner / Admin / Member 權限。<br />
-            先用活動管理日常工作，並把大家的排班與支援軌跡累積成年度回顧。當不同團隊要一起完成同一場活動或專案時，再開一個聯合群組，集中共享合作目的、現場 brief 與跨團隊協作資訊。
+            先用活動管理日常工作，讓大家在排班表上的參與、取消與支援軌跡逐步累積成年度回顧。你可以在年底看見每個人的排班次數、主要崗位、換班紀錄與成就徽章；當不同團隊要一起完成同一場活動或專案時，再開一個聯合群組，集中共享合作目的、現場 brief 與跨團隊協作資訊。
           </p>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link href={DEMO_URL} style={{
@@ -83,7 +83,7 @@ export default function LandingPage() {
         }}>
           {[
             { num: '30秒', label: '建立第一個團隊' },
-            { num: '多團隊', label: '同帳號自由切換' },
+            { num: '年度回顧', label: '累積參與與支援軌跡' },
             { num: '跨團隊', label: '聯合總覽看衝突' },
           ].map((stat) => (
             <div key={stat.label} style={{ background: 'var(--dark-surface)', padding: '2rem', textAlign: 'center' }}>
@@ -94,7 +94,7 @@ export default function LandingPage() {
         </section>
 
         <section id="features" style={{ marginBottom: '7rem' }}>
-          <SectionHeader tag="功能特色" title="從團隊活動管理，延伸到跨團隊協作" desc="先把每個 team 的權限、活動與成員管理做好，再在必要時把多個團隊拉進同一個聯合群組。" />
+          <SectionHeader tag="功能特色" title="從團隊活動管理，延伸到年度回顧與跨團隊協作" desc="先把每個 team 的權限、活動與成員管理做好，再讓每一次排班與支援逐步累積成可回顧的量化資料。" />
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
             gap: '1px', background: 'var(--dark-border)', border: '1px solid var(--dark-border)',
@@ -115,8 +115,13 @@ export default function LandingPage() {
         </section>
 
         <section style={{ marginBottom: '7rem' }}>
-          <SectionHeader tag="操作截圖" title="先看活動，再看需要的時段" desc="活動是主流程；只有需要細分角色、名額與時段時，才展開進階排班設定。" />
+          <SectionHeader tag="操作截圖" title="先看活動，再讓排班歷程自然累積" desc="活動是主流程；成員在排班表上的參與、取消與支援軌跡，會逐步累積到年度回顧。" />
           <MockSchedule />
+        </section>
+
+        <section style={{ marginBottom: '7rem' }}>
+          <SectionHeader tag="年度回顧" title="把大家一年來的參與軌跡量化呈現" desc="年底不只知道誰來過，而是能回看每個人排了幾次班、主要在哪些崗位出現、支援了幾次換班。" />
+          <MockYearReview />
         </section>
 
         <section style={{ marginBottom: '7rem' }}>
@@ -130,12 +135,12 @@ export default function LandingPage() {
         </section>
 
         <section style={{ marginBottom: '7rem' }}>
-          <SectionHeader tag="成員自主登記" title="可參與日期一鍵勾選" desc="成員可先登記可參與的活動或時段，管理者在 team 或聯合作業前置階段都能更快排出人力。" />
+          <SectionHeader tag="成員自主登記" title="可參與日期一鍵勾選" desc="成員可先登記自己可參與的活動時段，管理者更容易安排人力，之後也能在年度回顧裡看見長期參與軌跡。" />
           <MockAvailability />
         </section>
 
         <section id="how" style={{ marginBottom: '7rem' }}>
-          <SectionHeader tag="使用流程" title="五步驟開始協作" />
+          <SectionHeader tag="使用流程" title="五步驟開始協作與累積回顧" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
             {STEPS.map((step, index) => (
               <div key={step.title} style={{ padding: '2rem 1.5rem', border: '1px solid var(--dark-border)', position: 'relative' }}>
@@ -165,7 +170,7 @@ export default function LandingPage() {
             先建立你的團隊，再把合作團隊接進來
           </h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--muted)', marginBottom: '2.5rem', lineHeight: 1.8 }}>
-            從自己的 team 開始，先建立活動與成員名單；等到有大型活動、跨據點任務或多單位專案時，再用聯合群組把資訊串起來。
+            從自己的 team 開始，先建立活動與成員名單；平時就讓排班與支援軌跡持續累積。等到有大型活動、跨據點任務或多單位專案時，再用聯合群組把資訊串起來。
           </p>
           <Link href={DEMO_URL} style={{
             display: 'inline-block',
@@ -242,7 +247,7 @@ function MockNavbar({ active }: { active: string }) {
       <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', letterSpacing: '0.15em', color: 'var(--warm-white)' }}>
         HOLY<span style={{ color: 'var(--gold)' }}>WOOD</span>
       </span>
-      {['排班表', '我的排班', '可參與日期', '聯合群組', '管理'].map((label) => (
+      {['排班表', '我的排班', '年度回顧', '聯合群組', '管理'].map((label) => (
         <span key={label} style={{ fontSize: '0.65rem', color: label === active ? 'var(--gold)' : 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</span>
       ))}
       <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--gold)', background: 'rgba(200,164,85,0.1)', border: '1px solid rgba(200,164,85,0.2)', padding: '0.15rem 0.5rem' }}>HOLYWOOD 影視</span>
@@ -475,16 +480,80 @@ function MockAvailability() {
 const FEATURES = [
   { icon: 'grid', title: '多團隊身份並存', desc: '同一個人可以在 A 團隊是 Owner，在 B 團隊是 Admin 或 Member，也能再建立自己的新團隊。' },
   { icon: 'link', title: '聯合群組共享資訊', desc: '不同團隊要一起合作時，再建立聯合群組，把合作目的、共同 brief、聯合時程總覽與 partner team 集中在同一頁。' },
-  { icon: 'calendar', title: '進階時段排班', desc: '先建立活動；只有需要細分角色、名額與時段時，才展開 slot 設定，避免一開始把流程做得太重。' },
+  { icon: 'calendar', title: '年度回顧與量化資料', desc: '平時的排班參與、取消與支援紀錄會自然累積，年底能回看每個人的排班次數、服務時數與主力崗位。' },
   { icon: 'sliders', title: '團隊角色彈性設定', desc: 'Owner、Admin、Member 權限分清楚，崗位與工作角色也能依照據點、現場或專案自由調整。' },
-  { icon: 'zap', title: '排班與協作即時同步', desc: '活動、時段、共享說明與成員資訊即時更新，不再靠截圖、試算表與聊天室補洞。' },
+  { icon: 'zap', title: '遊戲化鼓勵參與', desc: '用積分、活躍月份與成就徽章，把平常默默支援的人看見，也讓團隊年末回顧更有溫度。' },
   { icon: 'swap', title: '邀請連結快速擴編', desc: '不論是邀請自己團隊成員，還是拉另一個團隊加入合作，都能用連結快速完成；DEMO 版每帳號最多建立 3 個團隊。' },
 ]
 
 const STEPS = [
   { title: 'Google 登入', desc: '用同一個帳號登入系統，未來可同時加入多個團隊，也能自己建立新的 team。' },
   { title: '建立或加入團隊', desc: '建立自己的團隊就自動成為 Owner；若是收到邀請，也能加入別人的團隊成為 Admin 或 Member。DEMO 版每帳號最多建立 3 個團隊。' },
-  { title: '先建立活動', desc: '從活動開始管理日常工作，並逐步累積每位成員的排班次數、主力崗位與支援紀錄。' },
+  { title: '先建立活動', desc: '從活動開始管理日常工作，成員之後在排班表上的參與與支援會逐步累積成年度回顧。' },
   { title: '建立聯合群組', desc: '當兩個團隊要一起完成同一場活動或專案時，建立聯合群組並分享合作邀請給 partner team。' },
-  { title: '共享 brief 與查看衝突', desc: '雙方加入後就在同一個合作空間裡維護共享說明，並查看聯合時程總覽與跨團隊人員衝突提示。' },
+  { title: '共享 brief 與年底回顧', desc: '雙方加入後可在合作空間裡查看共享說明與跨團隊衝突；平時累積的排班資料則會在年度回顧中呈現。' },
 ]
+
+function MockYearReview() {
+  const rows = [
+    { name: '王大明', points: 184, badges: ['出勤之星', '穩定同行'], roles: '導播 × 8 / 攝影 × 4' },
+    { name: '林小花', points: 166, badges: ['多面手', '長跑戰將'], roles: '攝影 × 7 / 招待 × 5 / 報到 × 3' },
+    { name: '陳志遠', points: 128, badges: ['救援王'], roles: '音控 × 6 / 網路直播 × 4' },
+  ]
+
+  return (
+    <div style={{ border: '1px solid var(--dark-border)', background: 'var(--dark-surface)', overflow: 'hidden' }}>
+      <MockNavbar active="年度回顧" />
+      <div style={{ padding: '1.25rem 1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
+          {[
+            { label: '總排班次數', value: '42' },
+            { label: '總服務時數', value: '96h' },
+            { label: '成功換班', value: '7' },
+            { label: '活躍成員', value: '12' },
+          ].map((item) => (
+            <div key={item.label} style={{ border: '1px solid var(--dark-border)', background: 'var(--dark)', padding: '0.75rem 0.85rem' }}>
+              <div style={{ fontSize: '0.68rem', color: 'var(--muted)' }}>{item.label}</div>
+              <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.2rem', color: 'var(--gold)', letterSpacing: '0.08em', marginTop: '0.25rem' }}>{item.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ border: '1px solid rgba(200,164,85,0.22)', background: 'rgba(200,164,85,0.06)', padding: '0.9rem 1rem', marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>我的年度戰績</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '0.95rem', color: 'var(--warm-white)' }}>林小花</div>
+              <div style={{ fontSize: '0.74rem', color: 'var(--muted)', marginTop: '0.15rem' }}>16 次排班 · 34 小時 · 3 個主力崗位</div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              {['多面手', '長跑戰將'].map((badge) => (
+                <span key={badge} style={{ fontSize: '0.66rem', color: 'var(--gold)', border: '1px solid rgba(200,164,85,0.25)', padding: '0.18rem 0.45rem', background: 'rgba(200,164,85,0.08)' }}>
+                  {badge}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+          {rows.map((row, index) => (
+            <div key={row.name} style={{ display: 'grid', gridTemplateColumns: '56px 1fr auto', gap: '0.75rem', alignItems: 'center', padding: '0.7rem 0.8rem', border: '1px solid var(--dark-border)', background: 'rgba(255,255,255,0.02)' }}>
+              <div style={{ color: index === 0 ? 'var(--gold)' : 'var(--muted)', fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.05rem', letterSpacing: '0.08em' }}>
+                #{index + 1}
+              </div>
+              <div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--warm-white)' }}>{row.name}</div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--muted)', marginTop: '0.15rem' }}>{row.roles}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '0.9rem', color: 'var(--gold)' }}>{row.points} 分</div>
+                <div style={{ fontSize: '0.64rem', color: 'var(--muted)', marginTop: '0.15rem' }}>{row.badges.join(' · ')}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
